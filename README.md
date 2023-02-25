@@ -34,5 +34,6 @@ Available recipes:
 ```
 
 ## Licensing
+Licensed under the MIT license.
 
-This project is unlicensed. Please contact me if you'd like to use or extend this project!
+Copyright © 2023 Gerald Nash
