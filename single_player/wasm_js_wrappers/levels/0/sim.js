@@ -26,10 +26,14 @@ class Sim extends WasmUtils {
         const audioName = this.getCString(wasmMemory, audioNamePtr)
         gameEventEmitter.emit('LOOP_2D_AUDIO', [audioName])
       },
-      loop_animation_hook: (sceneObjNamePtr, animNamePtr) => {
+      loop_animation_hook: (sceneObjNamePtr, animNamePtr, timeScale) => {
         const sceneObjName = this.getCString(wasmMemory, sceneObjNamePtr)
         const animName = this.getCString(wasmMemory, animNamePtr)
-        gameEventEmitter.emit('LOOP_ANIMATION', [sceneObjName, animName])
+        gameEventEmitter.emit('LOOP_ANIMATION', [
+          sceneObjName,
+          animName,
+          timeScale,
+        ])
       },
       stop_animation_hook: (sceneObjNamePtr, animNamePtr) => {
         const sceneObjName = this.getCString(wasmMemory, sceneObjNamePtr)
