@@ -1,0 +1,23 @@
+[package]
+name = "single_player"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+opt-level = "s"
+strip = "debuginfo"
+lto = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+ffi = ["perigee/ffi"]
+level_0 = []
+
+[dependencies]
+# https://github.com/aunyks/perigee
+perigee = { version = "0.1.0" }
+
+# https://github.com/serde-rs/serde
+serde = { version = "1.0.97", features = ["derive"] }

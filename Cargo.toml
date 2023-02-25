@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    # Simulation structures that define single player levels
+    "single_player",
+]
+resolver = "2"
