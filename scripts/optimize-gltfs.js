@@ -5,7 +5,7 @@ import {
   prune,
   dedup,
   textureResize,
-} from 'https://esm.sh/@gltf-transform/functions'
+} from 'https://esm.sh/@gltf-transform/functions@3.0.4'
 import * as path from 'https://deno.land/std/path/mod.ts'
 
 async function getNestedGltfs(searchPath) {
@@ -32,13 +32,8 @@ for (const gltfPath of await getNestedGltfs(gltfDirectory)) {
   const glbBytes = await Deno.readFile(gltfPath)
   const glbDocument = await io.readBinary(glbBytes)
 
-  await glbDocument.transform(
-    dedup(),
-    resample(),
-    prune(),
-    textureResize({ size: [1024, 1024] })
-  )
+  await glbDocument.transform(resample(), dedup())
 
-  const newGlbBytes = await io.writeBinary()
+  const newGlbBytes = await io.writeBinary(glbDocument)
   await Deno.writeFile(gltfPath, newGlbBytes)
 }
