@@ -1,3 +1,4 @@
+use getset::{CopyGetters, Setters};
 use perigee::{
     toml,
     traits::{TryFromToml, TryToToml},
@@ -6,11 +7,13 @@ use serde::{Deserialize, Serialize};
 
 // The player-editable game configuration.
 /// These should be editable at runtime.
-#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, CopyGetters, Setters)]
 pub struct GameSettings {
     #[serde(default)]
+    #[getset(get_copy = "pub", set = "pub")]
     up_down_look_sensitivity: u8,
     #[serde(default)]
+    #[getset(get_copy = "pub", set = "pub")]
     left_right_look_sensitivity: u8,
 }
 
@@ -38,32 +41,6 @@ impl TryToToml for GameSettings {
             Ok(settings_toml) => Ok(settings_toml),
             Err(toml_ser_err) => Err(toml_ser_err.to_string()),
         }
-    }
-}
-
-impl GameSettings {
-    /// How quickly the player can change its X axis (up / down)
-    /// look sensitivity.
-    pub fn up_down_look_sensitivity(&self) -> u8 {
-        self.up_down_look_sensitivity
-    }
-
-    /// How quickly the player can change its Y axis (left / right)
-    /// look sensitivity.
-    pub fn left_right_look_sensitivity(&self) -> u8 {
-        self.left_right_look_sensitivity
-    }
-
-    /// Set how quickly the player can change its X axis (up / down)
-    /// look sensitivity.
-    pub fn set_up_down_look_sensitivity(&mut self, new_sensitivity: u8) {
-        self.up_down_look_sensitivity = new_sensitivity;
-    }
-
-    /// Set how quickly the player can change its Y axis (left / right)
-    /// look sensitivity.
-    pub fn set_left_right_look_sensitivity(&mut self, new_sensitivity: u8) {
-        self.left_right_look_sensitivity = new_sensitivity;
     }
 }
 

@@ -60,6 +60,11 @@ impl TryToToml for Input {
 }
 
 impl Input {
+    /// Set all values to their defaults
+    pub fn wipe(&mut self) {
+        *self = Self::default();
+    }
+
     /// The forward moving magnitude of the object
     /// controlled by the player (back is positive, forward is negative).
     pub fn move_forward(&self) -> f32 {

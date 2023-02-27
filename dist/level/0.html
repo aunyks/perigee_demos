@@ -387,10 +387,14 @@
           settings.interface.debugToolsEnabled = checked
 
           if(checked) {
-            debugGui = new GUI()
-            debugGui.add(document, 'title')
+            if(debugGui === null) {
+              debugGui = new GUI()
+              debugGui.add(document, 'title')
+            } else {
+              debugGui.show()
+            }
           } else {
-            debugGui.destroy()
+            debugGui.hide()
           }
         })
 

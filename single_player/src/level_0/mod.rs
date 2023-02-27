@@ -245,8 +245,7 @@ impl<'a> Sim<'a> {
             };
         }
 
-        // Clear all inputs
-        self.input = Input::default();
+        self.input.wipe();
     }
 }
 
