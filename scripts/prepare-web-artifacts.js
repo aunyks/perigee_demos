@@ -34,12 +34,6 @@ fs.copyFileSync(
   fs.constants.COPYFILE_FICLONE
 )
 
-fs.copyFileSync(
-  path.joinGlobs([cwd, 'assets', 'gltf', 'shared', 'player-character.glb']),
-  path.joinGlobs([cwd, 'dist', 'gltf', 'player', 'player-character.glb']),
-  fs.constants.COPYFILE_FICLONE
-)
-
 // Copy shared sim utils to web interface
 copySync(
   path.joinGlobs([
