@@ -773,8 +773,8 @@ impl Player {
             movement_vector
         };
         let is_moving_forward = match self.perspective_mode.current_state() {
-            PerspectiveMode::ThirdPersonBasic => true,
-            PerspectiveMode::FirstPerson | PerspectiveMode::ThirdPersonCombat => {
+            PerspectiveMode::FirstPerson | PerspectiveMode::ThirdPersonBasic => true,
+            PerspectiveMode::ThirdPersonCombat => {
                 capped_movement_vector.angle(&FORWARD_VECTOR).to_degrees()
                     <= self.config.max_sprint_forward_angle_threshold_discrete()
             }

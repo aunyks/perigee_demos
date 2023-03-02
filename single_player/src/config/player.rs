@@ -251,7 +251,7 @@ impl Default for PlayerConfig {
             standing_head_translation_offset: [
                 0.0,
                 capsule_total_height / 2.0 * 0.84,
-                -capsule_radius * 0.8,
+                capsule_radius * 0.23,
             ],
             crouched_head_translation_offset: [
                 0.0,
