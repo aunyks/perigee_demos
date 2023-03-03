@@ -291,7 +291,7 @@
       import {
         toggleModal,
         modalWithId
-      } from '/js/components/modal.js'
+      } from '/js/components/modal.module.js'
 
       const loadingContainer = document.getElementById('loading-container')
       const sceneContainer = document.getElementById('scene-container')
@@ -402,8 +402,7 @@
           canvas: sceneCanvas,
           antialias: window.devicePixelRatio > 1 ? false : true,
         })
-        // We need this since we're drawing twice
-        renderer.autoClear = false
+
         renderer.setSize(sceneContainer.clientWidth, sceneContainer.clientHeight)
         renderer.setPixelRatio(window.devicePixelRatio)
         renderer.physicallyCorrectLights = true
@@ -420,9 +419,10 @@
         // Create our background environment
         const backgroundEnvironment = new Group()
         backgroundEnvironment.add(new SkyDome())
-        const sun = new Sun(null, 0.4)
+        const sun = new Sun()
         sun.pivot.rotation.set(Math.PI / 6, 0, 0, 'YXZ')
         backgroundEnvironment.add(sun)
+        backgroundEnvironment.renderOrder = -Number.MAX_SAFE_INTEGER
         mainScene.add(backgroundEnvironment)
 
         const playerHeight = 1.83
@@ -768,6 +768,7 @@
         })
 
         sim.initialize()
+        renderer.compile(mainScene, activeCamera)
         toggleModal(modalWithId('intro-modal'))
         const startBtn = document.getElementById('start-game-button')
         startBtn.addEventListener('click', () => {

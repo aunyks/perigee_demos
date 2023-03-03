@@ -1,5 +1,5 @@
 import {
-  CircleGeometry,
+  PlaneGeometry,
   ShaderMaterial,
   Uniform,
   Object3D,
@@ -14,9 +14,12 @@ class Sun extends Group {
     const scaleFactor = _scaleFactor || 1
     const color = (_color || new Color(0xeeeeee)).convertLinearToSRGB()
     this._sunMesh = new Mesh(
-      new CircleGeometry(200, 26),
+      new PlaneGeometry(100, 100),
       new ShaderMaterial({
         transparent: true,
+        uniforms: {
+          color: new Uniform(color),
+        },
         vertexShader: `
           varying vec2 vUv;
           uniform vec3 color;
@@ -33,9 +36,6 @@ class Sun extends Group {
             gl_FragColor = vec4(color, 1.0 - smoothstep(0.0, .5, distance(vUv, vec2(0.5))));
           }
           `,
-        uniforms: {
-          color: new Uniform(color),
-        },
       })
     )
     this.pivot = new Object3D()
@@ -49,6 +49,7 @@ class Sun extends Group {
 
     // - 1 so that it's in front of the skydome
     this._sunMesh.renderOrder = -(Number.MAX_SAFE_INTEGER - 1)
+    this.renderOrder = -(Number.MAX_SAFE_INTEGER - 1)
   }
 }
 
