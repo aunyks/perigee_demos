@@ -90,11 +90,6 @@ impl Default for Player {
 }
 
 impl Player {
-    /// Create a new player with default properties.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// Create a new player with the provided configuration.
     pub fn with_config(config: PlayerConfig) -> Self {
         Self {
@@ -212,7 +207,7 @@ impl Player {
     pub fn update(
         &mut self,
         delta_seconds: f32,
-        input: &mut Input,
+        input: &Input,
         settings: &GameSettings,
         physics: &mut PhysicsWorld,
     ) {

@@ -1,4 +1,4 @@
-use crate::shared::{input::Input, player::Player, settings::GameSettings};
+use crate::shared::{car::Car, input::Input, player::Player, settings::GameSettings};
 use crate::{level_0::config::Level0Config, shared::events::PlayerEvent};
 use events::Level0Event;
 use perigee::prelude::*;
@@ -15,6 +15,7 @@ pub struct Sim<'a> {
     pub physics: PhysicsWorld,
     pois: PointsOfInterest,
     pub player: Player,
+    pub car: Car,
     scene_gltf_bytes: &'a [u8],
     player_gltf_bytes: &'a [u8],
     #[serde(skip)]
@@ -32,6 +33,7 @@ impl<'a> Default for Sim<'a> {
             input: Input::default(),
             physics: PhysicsWorld::default(),
             player: Player::default(),
+            car: Car::default(),
             scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/0/scene.glb"),
             player_gltf_bytes: include_bytes!("../../../assets/gltf/shared/player-character.glb"),
             level_event_channel: EventChannel::default(),
@@ -81,6 +83,31 @@ impl<'a> Sim<'a> {
 
     pub fn player_gltf_bytes(&self) -> &[u8] {
         self.player_gltf_bytes
+    }
+
+    pub fn initialize(&mut self) {
+        // Load static colliders using trimeshes extracted from geometries
+        // within a glTF. This lets you create a level using your favoritte 3D
+        // modeling tool.
+        let scene_gltf = Gltf::from_slice(self.scene_gltf_bytes).unwrap();
+
+        self.physics.load_from_gltf(&scene_gltf).unwrap();
+        self.pois.load_from_gltf(&scene_gltf).unwrap();
+
+        let player_gltf = Gltf::from_slice(self.player_gltf_bytes).unwrap();
+        self.player = Player::with_config(self.config().player());
+        self.player.add_to_physics_world(
+            &mut self.physics.rigid_body_set,
+            &mut self.physics.collider_set,
+            None,
+        );
+        self.player.add_gltf_animations(&player_gltf);
+
+        self.car.add_to_physics_world(
+            &mut self.physics.rigid_body_set,
+            &mut self.physics.collider_set,
+            None,
+        );
     }
 }
 
@@ -187,34 +214,29 @@ impl<'a> Sim<'a> {
         *self.player.body_isometry()
     }
 
+    #[slot_return]
+    pub fn car_cabin_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+        *self.car.cabin_isometry()
+    }
+
+    // Making this an FFI-only wrapper because if the WASM has a
+    // function "initialize" it's not obvious what type it's initializing.
     #[ffi_only]
     pub fn initialize_sim(&mut self) {
-        // Load static colliders using trimeshes extracted from geometries
-        // within a glTF. This lets you create a level using your favoritte 3D
-        // modeling tool.
-        let scene_gltf = Gltf::from_slice(self.scene_gltf_bytes).unwrap();
-
-        self.physics.load_from_gltf(&scene_gltf).unwrap();
-        self.pois.load_from_gltf(&scene_gltf).unwrap();
-
-        let player_gltf = Gltf::from_slice(self.player_gltf_bytes).unwrap();
-        self.player = Player::with_config(self.config().player());
-        self.player.add_to_physics_world(
-            &mut self.physics.rigid_body_set,
-            &mut self.physics.collider_set,
-            None,
-        );
-        self.player.add_gltf_animations(&player_gltf);
+        self.initialize();
     }
 
     /// Step the game simulation by the provided number of seconds.
     pub fn step(&mut self, delta_seconds: f32) {
         self.player.update(
             delta_seconds,
-            &mut self.input,
+            &self.input,
             &self.settings,
             &mut self.physics,
         );
+
+        self.car
+            .update(delta_seconds, &self.input, &mut self.physics);
 
         self.physics.step(delta_seconds);
 

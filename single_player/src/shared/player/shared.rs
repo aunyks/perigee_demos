@@ -106,10 +106,6 @@ impl Boom {
     pub fn lerp_mut(&mut self, other: &Self, t: f32) {
         self.length = lerp(self.length(), other.length(), t);
         self.arm_pivot = self.arm_pivot.lerp_slerp(&other.arm_pivot, t);
-        // debug!(
-        //     "t: {:?} / T: {:?} / L: {:?}",
-        //     t, &other.arm_pivot, self.arm_pivot
-        // );
     }
 }
 

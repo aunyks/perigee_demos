@@ -444,6 +444,9 @@
         const playerMixer = new AnimationMixer(playerModelGltf.scene)
         mainScene.add(playerModelGltf.scene)
 
+        const cabinMesh = new Mesh(new BoxGeometry(1, 1, 2), new MeshBasicMaterial({ color: 0x0000ff }))
+        mainScene.add(cabinMesh)
+
         mainScene.add(new AmbientLight())
 
         const animatedCamera = animatedCameraGltf.cameras[0]
@@ -657,6 +660,10 @@
             playerMesh.quaternion.fromArray(playerRotation)
             playerModelGltf.scene.position.fromArray(playerTranslation)
             playerModelGltf.scene.quaternion.fromArray(playerRotation)
+
+            const [cabinRotation, cabinTranslation] = sim.carCabinIsometry()
+            cabinMesh.position.fromArray(cabinTranslation)
+            cabinMesh.quaternion.fromArray(cabinRotation)
 
             sceneGltf.scene.traverse((obj) => {
               if(obj.isMesh && !obj.userData.simSettings.physics.isAnonymous) {

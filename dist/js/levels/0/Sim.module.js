@@ -219,6 +219,14 @@ class Sim extends WasmUtils {
     return this.getIsometryF32(this._wasmMemory, this._isometryPointer)
   }
 
+  carCabinIsometry() {
+    this._wasmExports.car_cabin_isometry(
+      this._simPointer,
+      this._isometryPointer
+    )
+    return this.getIsometryF32(this._wasmMemory, this._isometryPointer)
+  }
+
   cameraGlobalIsometry() {
     this._wasmExports.camera_global_isometry(
       this._simPointer,
