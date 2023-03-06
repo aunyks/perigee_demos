@@ -25,7 +25,7 @@ impl Default for CarConfig {
             cabin_half_width: 0.5,
             cabin_half_height: 0.5,
             cabin_half_length: 1.0,
-            shock_spring_constant: 1.0,
+            shock_spring_constant: 10.0,
             shock_spring_dampening_factor: 1.0,
             mass: 1.0,
             desired_cabin_altitude: 1.0,

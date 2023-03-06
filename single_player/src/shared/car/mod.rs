@@ -4,7 +4,7 @@ use crate::shared::interactions::InteractionGroup;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct Shock {
     pub iso: Isometry<f32, UnitQuaternion<f32>, 3>,
     pub last_toi: f32,
@@ -122,10 +122,11 @@ impl Car {
         let query_filter = QueryFilter::new();
 
         let rigid_body_set = physics.rigid_body_set.clone();
-        if let Some(cabin_body) = physics.rigid_body_set.get_mut(self.body_handle()) {
+        let cabin_body_handle = self.body_handle();
+        if let Some(cabin_body) = physics.rigid_body_set.get_mut(cabin_body_handle) {
             self.cabin_isometry = *cabin_body.position();
 
-            for (idx, shock) in [self.fl, self.fr, self.bl, self.br].iter_mut().enumerate() {
+            for shock in [&mut self.fl, &mut self.fr, &mut self.bl, &mut self.br].iter_mut() {
                 let wheel_global_iso = cabin_body.position() * shock.iso;
                 let shock_ray = self.suspension_ray.transform_by(&wheel_global_iso);
 
@@ -136,11 +137,11 @@ impl Car {
                         &shock_ray,
                         self.config.desired_cabin_altitude(),
                         true,
-                        query_filter.exclude_rigid_body(self.body_handle()),
+                        query_filter.exclude_rigid_body(cabin_body_handle),
                     )
                 {
                     let global_intersection_point = shock_ray.point_at(intersection_details.toi);
-                    let up = intersection_details.normal;
+                    let up = -shock_ray.dir;
 
                     let spring_compression =
                         self.config.desired_cabin_altitude() - intersection_details.toi;
@@ -148,21 +149,15 @@ impl Car {
                     let spring_force =
                         up * self.config.shock_spring_constant() * spring_compression;
 
-                    // Current velocity of the spring arm in the up direction (so a negative value is down)
-                    let up_velocity = (intersection_details.toi - shock.last_toi)
-                        / (delta_seconds + f32::EPSILON); // adding epsilon to prevent possible div by 0
+                    let up_velocity = (intersection_details.toi - shock.last_toi) / delta_seconds;
 
-                    if idx == 0 {
-                        // only print debug info for one wheel at a time
-                        debug!("comp: {}, vel: {}", spring_compression, up_velocity);
-                    }
+                    let dampening_force =
+                        up * up_velocity * self.config.shock_spring_dampening_factor();
 
-                    let dampening = up * up_velocity * self.config.shock_spring_dampening_factor();
-
-                    let force = spring_force + dampening;
+                    let shock_force = spring_force - dampening_force;
 
                     cabin_body.apply_impulse_at_point(
-                        force * delta_seconds,
+                        shock_force * delta_seconds,
                         global_intersection_point,
                         false,
                     );
