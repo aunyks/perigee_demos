@@ -16,7 +16,7 @@ pub struct CarConfig {
     #[getset(get_copy = "pub")]
     mass: f32,
     #[getset(get_copy = "pub")]
-    desired_cabin_altitude: f32,
+    suspension_max_length: f32,
 }
 
 impl Default for CarConfig {
@@ -28,7 +28,7 @@ impl Default for CarConfig {
             shock_spring_constant: 10.0,
             shock_spring_dampening_factor: 1.0,
             mass: 1.0,
-            desired_cabin_altitude: 1.0,
+            suspension_max_length: 1.0,
         }
     }
 }

@@ -4,6 +4,7 @@ use crate::shared::input::Input;
 use crate::shared::interactions::InteractionGroup;
 use crate::shared::player::shared::*;
 use crate::shared::settings::GameSettings;
+use crate::shared::vectors::*;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;

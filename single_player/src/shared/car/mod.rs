@@ -2,11 +2,12 @@ use crate::config::CarConfig;
 use crate::shared::input::Input;
 use crate::shared::interactions::InteractionGroup;
 use perigee::prelude::*;
+use perigee::rapier3d::na::Translation3;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
 struct Shock {
-    pub iso: Isometry<f32, UnitQuaternion<f32>, 3>,
+    pub translation: Translation3<f32>,
     pub last_toi: f32,
 }
 
@@ -31,36 +32,36 @@ impl Default for Car {
             suspension_ray: Ray::new(Point::new(0.0, 0.0, 0.0), Vector3::new(0.0, -1.0, 0.0)),
             cabin_isometry: Isometry::default(),
             fl: Shock {
-                iso: Isometry::from(Vector3::new(
+                translation: Translation3::from(Vector3::new(
                     -car_config.cabin_half_width(),
                     -car_config.cabin_half_height(),
                     -car_config.cabin_half_length(),
                 )),
-                last_toi: car_config.desired_cabin_altitude(),
+                last_toi: car_config.suspension_max_length(),
             },
             fr: Shock {
-                iso: Isometry::from(Vector3::new(
+                translation: Translation3::from(Vector3::new(
                     car_config.cabin_half_width(),
                     -car_config.cabin_half_height(),
                     -car_config.cabin_half_length(),
                 )),
-                last_toi: car_config.desired_cabin_altitude(),
+                last_toi: car_config.suspension_max_length(),
             },
             bl: Shock {
-                iso: Isometry::from(Vector3::new(
+                translation: Translation3::from(Vector3::new(
                     -car_config.cabin_half_width(),
                     -car_config.cabin_half_height(),
                     car_config.cabin_half_length(),
                 )),
-                last_toi: car_config.desired_cabin_altitude(),
+                last_toi: car_config.suspension_max_length(),
             },
             br: Shock {
-                iso: Isometry::from(Vector3::new(
+                translation: Translation3::from(Vector3::new(
                     car_config.cabin_half_width(),
                     -car_config.cabin_half_height(),
                     car_config.cabin_half_length(),
                 )),
-                last_toi: car_config.desired_cabin_altitude(),
+                last_toi: car_config.suspension_max_length(),
             },
         }
     }
@@ -78,15 +79,13 @@ impl Car {
         } else {
             Isometry::from(Vector3::new(
                 0.0,
-                self.config.desired_cabin_altitude(),
-                -5.0,
+                self.config.suspension_max_length() + 1.0,
+                -6.0,
             ))
         };
 
         let rigid_body = RigidBodyBuilder::dynamic()
             .position(initial_isometry)
-            // .angular_damping(self.config.shock_spring_dampening_factor())
-            // .linear_damping(self.config.shock_spring_dampening_factor())
             .build();
         let cabin_collider = ColliderBuilder::cuboid(
             self.config.cabin_half_width(),
@@ -121,51 +120,66 @@ impl Car {
     pub fn update(&mut self, delta_seconds: f32, _input: &Input, physics: &mut PhysicsWorld) {
         let query_filter = QueryFilter::new();
 
-        let rigid_body_set = physics.rigid_body_set.clone();
         let cabin_body_handle = self.body_handle();
+        let cloned_rigid_body_set = physics.rigid_body_set.clone();
         if let Some(cabin_body) = physics.rigid_body_set.get_mut(cabin_body_handle) {
             self.cabin_isometry = *cabin_body.position();
 
             for shock in [&mut self.fl, &mut self.fr, &mut self.bl, &mut self.br].iter_mut() {
-                let wheel_global_iso = cabin_body.position() * shock.iso;
+                let wheel_global_iso = cabin_body.position() * shock.translation;
                 let shock_ray = self.suspension_ray.transform_by(&wheel_global_iso);
 
                 if let Some((_, intersection_details)) =
                     physics.query_pipeline.cast_ray_and_get_normal(
-                        &rigid_body_set,
+                        &cloned_rigid_body_set,
                         &physics.collider_set,
                         &shock_ray,
-                        self.config.desired_cabin_altitude(),
+                        self.config.suspension_max_length(),
                         true,
                         query_filter.exclude_rigid_body(cabin_body_handle),
                     )
                 {
-                    let global_intersection_point = shock_ray.point_at(intersection_details.toi);
-                    let up = -shock_ray.dir;
-
-                    let spring_compression =
-                        self.config.desired_cabin_altitude() - intersection_details.toi;
-
-                    let spring_force =
-                        up * self.config.shock_spring_constant() * spring_compression;
-
-                    let up_velocity = (intersection_details.toi - shock.last_toi) / delta_seconds;
-
-                    let dampening_force =
-                        up * up_velocity * self.config.shock_spring_dampening_factor();
-
-                    let shock_force = spring_force - dampening_force;
-
-                    cabin_body.apply_impulse_at_point(
-                        shock_force * delta_seconds,
-                        global_intersection_point,
-                        false,
+                    Self::simulate_suspension(
+                        &self.config,
+                        shock,
+                        &shock_ray,
+                        &intersection_details,
+                        cabin_body,
+                        delta_seconds,
                     );
-                    shock.last_toi = intersection_details.toi;
                 } else {
-                    shock.last_toi = self.config.desired_cabin_altitude();
+                    shock.last_toi = self.config.suspension_max_length();
                 }
             }
         }
+    }
+
+    fn simulate_suspension(
+        config: &CarConfig,
+        shock: &mut Shock,
+        shock_ray: &Ray,
+        intersection_details: &RayIntersection,
+        cabin_body: &mut RigidBody,
+        delta_seconds: f32,
+    ) {
+        let global_intersection_point = shock_ray.point_at(intersection_details.toi);
+        let up = -shock_ray.dir;
+
+        let spring_compression = config.suspension_max_length() - intersection_details.toi;
+
+        let spring_force = up * config.shock_spring_constant() * spring_compression;
+
+        let up_velocity = (intersection_details.toi - shock.last_toi) / delta_seconds;
+
+        let dampening_force = up * up_velocity * config.shock_spring_dampening_factor();
+
+        let shock_force = spring_force - dampening_force;
+
+        cabin_body.apply_impulse_at_point(
+            shock_force * delta_seconds,
+            global_intersection_point,
+            false,
+        );
+        shock.last_toi = intersection_details.toi;
     }
 }
