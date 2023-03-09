@@ -621,7 +621,7 @@
         function onGameLoopTick(tFrame) {
           deltaT = Math.abs(tFrame - lastTimestamp)
           perfStatistics.begin()
-          if(deltaT < 90) {
+          if(deltaT < 90 && deltaT !== 0) {
             const gamepadReady = inputs[inputs.length - 1].ready()
             if(gamepadReady) {
               document.querySelectorAll('.hud.input').forEach(hudInputElement => {

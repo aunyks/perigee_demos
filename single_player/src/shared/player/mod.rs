@@ -1,4 +1,5 @@
 use crate::config::PlayerConfig;
+use crate::shared::boom::Boom;
 use crate::shared::events::PlayerEvent;
 use crate::shared::input::Input;
 use crate::shared::interactions::InteractionGroup;
@@ -482,7 +483,8 @@ impl Player {
 
         let (x_roll, x_pitch, x_yaw) = self.boom.x_rotation.euler_angles();
         self.boom.x_rotation = UnitQuaternion::from_euler_angles(
-            (x_roll + pitch_magnitude).clamp(max_pitch_angle, min_pitch_angle),
+            (x_roll + pitch_magnitude)
+                .clamp(max_pitch_angle.to_radians(), min_pitch_angle.to_radians()),
             x_pitch,
             x_yaw,
         );
@@ -559,7 +561,8 @@ impl Player {
         let (roll, pitch, yaw) = self.head_x_rotation.euler_angles();
 
         self.head_x_rotation = UnitQuaternion::from_euler_angles(
-            (roll + x_axis_rotation).clamp(max_look_angle, min_look_angle),
+            (roll + x_axis_rotation)
+                .clamp(max_look_angle.to_radians(), min_look_angle.to_radians()),
             pitch,
             yaw,
         );

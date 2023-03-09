@@ -1,30 +1,44 @@
+use getset::CopyGetters;
 use perigee::{
     toml,
     traits::{TryFromToml, TryToToml},
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, CopyGetters)]
 pub struct Input {
     /// The forward moving magnitude of the object
     /// controlled by the player (back is positive, forward is negative)
+    #[getset(get_copy = "pub")]
     move_forward: f32,
     /// The right moving magnitude of the object
     /// controlled by the player (right is positive, left is negative)
+    #[getset(get_copy = "pub")]
     move_right: f32,
     /// The look-up magnitude of the object
     /// controlled by the player (up is positive, down is negative)
+    #[getset(get_copy = "pub")]
     rotate_up: f32,
     /// The right turn magnitude of the object
     /// controlled by the player (right is positive, left is negative)
+    #[getset(get_copy = "pub")]
     rotate_right: f32,
     /// The jump status of the object controlled
     /// by the player (true is intention to jump, false is not)
+    #[getset(get_copy = "pub")]
     jump: bool,
     /// The crouch status of the player (true is intention to crouch, false is not)
+    #[getset(get_copy = "pub")]
     crouch: bool,
     /// The third person aim mode of the player
+    #[getset(get_copy = "pub")]
     aim: bool,
+    #[getset(get_copy = "pub")]
+    steer: f32,
+    #[getset(get_copy = "pub")]
+    brake: f32,
+    #[getset(get_copy = "pub")]
+    throttle: f32,
 }
 
 impl Default for Input {
@@ -37,6 +51,9 @@ impl Default for Input {
             jump: false,
             crouch: false,
             aim: false,
+            steer: 0.0,
+            brake: 0.0,
+            throttle: 0.0,
         }
     }
 }
@@ -65,56 +82,19 @@ impl Input {
         *self = Self::default();
     }
 
-    /// The forward moving magnitude of the object
-    /// controlled by the player (back is positive, forward is negative).
-    pub fn move_forward(&self) -> f32 {
-        self.move_forward
-    }
-
-    /// The right moving magnitude of the object
-    /// controlled by the player (right is positive, left is negative).
-    pub fn move_right(&self) -> f32 {
-        self.move_right
-    }
-
-    /// The look-up magnitude of the object
-    /// controlled by the player (up is positive, down is negative).
-    pub fn rotate_up(&self) -> f32 {
-        self.rotate_up
-    }
-
-    /// The right turn magnitude of the object
-    /// controlled by the player (right is positive, left is negative).
-    pub fn rotate_right(&self) -> f32 {
-        self.rotate_right
-    }
-
-    /// The jump status of the object controlled
-    /// by the player (true is intention to jump, false is not).
-    pub fn jump(&self) -> bool {
-        self.jump
-    }
-
-    /// The crouch status of the player (true is intention to crouch, false is not)
-    pub fn crouch(&self) -> bool {
-        self.crouch
-    }
-
-    /// The third person aim mode of the player
-    pub fn aim(&self) -> bool {
-        self.aim
-    }
-
     /// Sets the forward moving magnitude of the object
     /// controlled by the player (back is positive, forward is negative).
     pub fn set_move_forward(&mut self, new_magnitude: f32) {
         self.move_forward = new_magnitude;
+        self.brake = new_magnitude;
+        self.throttle = -new_magnitude;
     }
 
     /// Sets the right moving magnitude of the object
     /// controlled by the player (right is positive, left is negative).
     pub fn set_move_right(&mut self, new_magnitude: f32) {
         self.move_right = new_magnitude;
+        self.steer = new_magnitude;
     }
 
     /// Sets the look-up magnitude of the object

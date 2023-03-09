@@ -222,9 +222,8 @@ impl Default for PlayerConfig {
         let capsule_radius = 0.4;
         Self {
             mass: 1.0,
-            max_look_up_angle: std::f32::consts::FRAC_PI_2,
-            min_look_up_angle: -std::f32::consts::FRAC_PI_2
-                + (30.0 * (std::f32::consts::FRAC_PI_2 / 180.0)),
+            max_look_up_angle: 90.0,
+            min_look_up_angle: -60.0,
             enter_head_tilt_factor: 0.12,
             exit_head_tilt_factor: 0.08,
             nonstationary_speed_threshold: 0.02,

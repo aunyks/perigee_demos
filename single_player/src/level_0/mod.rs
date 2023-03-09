@@ -206,7 +206,7 @@ impl<'a> Sim<'a> {
     #[slot_return]
     pub fn camera_global_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
         // The player's head position
-        self.player.camera_isometry()
+        self.car.camera_isometry()
     }
 
     #[slot_return]
@@ -235,8 +235,12 @@ impl<'a> Sim<'a> {
             &mut self.physics,
         );
 
-        self.car
-            .update(delta_seconds, &self.input, &mut self.physics);
+        self.car.update(
+            delta_seconds,
+            &self.input,
+            &self.settings,
+            &mut self.physics,
+        );
 
         self.physics.step(delta_seconds);
 

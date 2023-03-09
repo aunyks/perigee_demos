@@ -1,25 +1,40 @@
 use crate::config::CarConfig;
+use crate::shared::boom::Boom;
 use crate::shared::input::Input;
 use crate::shared::interactions::InteractionGroup;
+use crate::shared::settings::GameSettings;
+use crate::shared::vectors::*;
 use perigee::prelude::*;
 use perigee::rapier3d::na::Translation3;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct Shock {
     pub translation: Translation3<f32>,
     pub last_toi: f32,
 }
 
 #[derive(Serialize, Deserialize)]
+struct WheelWell {
+    /// A structure to help manage the vehicle's
+    /// suspension system.
+    pub shock: Shock,
+    /// A wheel that turns and controls the direction
+    /// of the vehicle. If there is none, then the wheel is
+    /// always rolling straight forward and doesn't turn.
+    pub steer_state: Option<UnitQuaternion<f32>>,
+    /// Whether this wheel receives power from the engine.
+    /// Use this to help determine the drivetrain layout.
+    pub receives_power: bool,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct Car {
     config: CarConfig,
+    camera_boom: Boom,
     rigid_body_handle: RigidBodyHandle,
     suspension_ray: Ray,
-    fl: Shock,
-    fr: Shock,
-    bl: Shock,
-    br: Shock,
+    suspension_system: Vec<WheelWell>,
     cabin_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
 }
 
@@ -31,38 +46,57 @@ impl Default for Car {
             rigid_body_handle: RigidBodyHandle::default(),
             suspension_ray: Ray::new(Point::new(0.0, 0.0, 0.0), Vector3::new(0.0, -1.0, 0.0)),
             cabin_isometry: Isometry::default(),
-            fl: Shock {
-                translation: Translation3::from(Vector3::new(
-                    -car_config.cabin_half_width(),
-                    -car_config.cabin_half_height(),
-                    -car_config.cabin_half_length(),
-                )),
-                last_toi: car_config.suspension_max_length(),
-            },
-            fr: Shock {
-                translation: Translation3::from(Vector3::new(
-                    car_config.cabin_half_width(),
-                    -car_config.cabin_half_height(),
-                    -car_config.cabin_half_length(),
-                )),
-                last_toi: car_config.suspension_max_length(),
-            },
-            bl: Shock {
-                translation: Translation3::from(Vector3::new(
-                    -car_config.cabin_half_width(),
-                    -car_config.cabin_half_height(),
-                    car_config.cabin_half_length(),
-                )),
-                last_toi: car_config.suspension_max_length(),
-            },
-            br: Shock {
-                translation: Translation3::from(Vector3::new(
-                    car_config.cabin_half_width(),
-                    -car_config.cabin_half_height(),
-                    car_config.cabin_half_length(),
-                )),
-                last_toi: car_config.suspension_max_length(),
-            },
+            camera_boom: Boom::default(),
+            suspension_system: vec![
+                WheelWell {
+                    receives_power: true,
+                    shock: Shock {
+                        translation: Translation3::from(Vector3::new(
+                            -car_config.cabin_half_width(),
+                            -car_config.cabin_half_height(),
+                            -car_config.cabin_half_length(),
+                        )),
+                        last_toi: car_config.suspension_max_length(),
+                    },
+                    steer_state: Some(UnitQuaternion::default()),
+                },
+                WheelWell {
+                    receives_power: true,
+                    shock: Shock {
+                        translation: Translation3::from(Vector3::new(
+                            car_config.cabin_half_width(),
+                            -car_config.cabin_half_height(),
+                            -car_config.cabin_half_length(),
+                        )),
+                        last_toi: car_config.suspension_max_length(),
+                    },
+                    steer_state: Some(UnitQuaternion::default()),
+                },
+                WheelWell {
+                    receives_power: false,
+                    shock: Shock {
+                        translation: Translation3::from(Vector3::new(
+                            -car_config.cabin_half_width(),
+                            -car_config.cabin_half_height(),
+                            car_config.cabin_half_length(),
+                        )),
+                        last_toi: car_config.suspension_max_length(),
+                    },
+                    steer_state: None,
+                },
+                WheelWell {
+                    receives_power: false,
+                    shock: Shock {
+                        translation: Translation3::from(Vector3::new(
+                            car_config.cabin_half_width(),
+                            -car_config.cabin_half_height(),
+                            car_config.cabin_half_length(),
+                        )),
+                        last_toi: car_config.suspension_max_length(),
+                    },
+                    steer_state: None,
+                },
+            ],
         }
     }
 }
@@ -80,7 +114,7 @@ impl Car {
             Isometry::from(Vector3::new(
                 0.0,
                 self.config.suspension_max_length() + 1.0,
-                -6.0,
+                6.0,
             ))
         };
 
@@ -117,16 +151,48 @@ impl Car {
         &self.cabin_isometry
     }
 
-    pub fn update(&mut self, delta_seconds: f32, _input: &Input, physics: &mut PhysicsWorld) {
+    pub fn camera_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+        self.camera_boom.end_isometry()
+    }
+
+    pub fn update(
+        &mut self,
+        delta_seconds: f32,
+        input: &Input,
+        settings: &GameSettings,
+        physics: &mut PhysicsWorld,
+    ) {
         let query_filter = QueryFilter::new();
 
         let cabin_body_handle = self.body_handle();
         let cloned_rigid_body_set = physics.rigid_body_set.clone();
         if let Some(cabin_body) = physics.rigid_body_set.get_mut(cabin_body_handle) {
             self.cabin_isometry = *cabin_body.position();
+            let num_wheels = self.suspension_system.len();
 
-            for shock in [&mut self.fl, &mut self.fr, &mut self.bl, &mut self.br].iter_mut() {
-                let wheel_global_iso = cabin_body.position() * shock.translation;
+            Self::update_boom_isometry(
+                cabin_body,
+                &mut self.camera_boom,
+                -input.rotate_right()
+                    * (2.5 * f32::from(settings.left_right_look_sensitivity()) / 5.0).to_radians(),
+                input.rotate_up()
+                    * (5.0 * f32::from(settings.up_down_look_sensitivity()) / 5.0).to_radians(),
+                self.config.max_look_up_angle(),
+                self.config.min_look_up_angle(),
+            );
+
+            Self::prevent_camera_obstructions(
+                cabin_body,
+                &mut self.camera_boom,
+                &mut physics.query_pipeline,
+                &cloned_rigid_body_set.clone(),
+                &physics.collider_set,
+                query_filter.exclude_rigid_body(cabin_body_handle),
+                &self.config,
+            );
+
+            for wheel_well in self.suspension_system.iter_mut() {
+                let wheel_global_iso = cabin_body.position() * wheel_well.shock.translation;
                 let shock_ray = self.suspension_ray.transform_by(&wheel_global_iso);
 
                 if let Some((_, intersection_details)) =
@@ -141,14 +207,51 @@ impl Car {
                 {
                     Self::simulate_suspension(
                         &self.config,
-                        shock,
+                        &mut wheel_well.shock,
                         &shock_ray,
                         &intersection_details,
                         cabin_body,
                         delta_seconds,
                     );
+
+                    let global_steer_state = wheel_global_iso.rotation
+                        * wheel_well.steer_state.unwrap_or(UnitQuaternion::default());
+                    let wheel_contact_location = shock_ray.point_at(intersection_details.toi);
+
+                    Self::simulate_brake(
+                        cabin_body,
+                        &input,
+                        &global_steer_state,
+                        wheel_contact_location,
+                        &self.config,
+                        delta_seconds,
+                    );
+
+                    if let Some(wheel_orientation) = wheel_well.steer_state.as_mut() {
+                        Self::simulate_steering(&input, wheel_orientation, &self.config);
+                    }
+
+                    Self::simulate_wheel_grip(
+                        cabin_body,
+                        &global_steer_state,
+                        wheel_contact_location,
+                        &self.config,
+                        cabin_body.mass() / (num_wheels as f32),
+                        delta_seconds,
+                    );
+
+                    if wheel_well.receives_power {
+                        Self::simulate_throttle(
+                            cabin_body,
+                            &input,
+                            &global_steer_state,
+                            wheel_contact_location,
+                            &self.config,
+                            delta_seconds,
+                        );
+                    }
                 } else {
-                    shock.last_toi = self.config.suspension_max_length();
+                    wheel_well.shock.last_toi = self.config.suspension_max_length();
                 }
             }
         }
@@ -178,8 +281,159 @@ impl Car {
         cabin_body.apply_impulse_at_point(
             shock_force * delta_seconds,
             global_intersection_point,
-            false,
+            true,
         );
         shock.last_toi = intersection_details.toi;
+    }
+
+    /// Apply force in the wheel forward direction
+    /// based on input
+    fn simulate_throttle(
+        cabin_body: &mut RigidBody,
+        input: &Input,
+        global_steer_state: &UnitQuaternion<f32>,
+        force_app_location: Point<f32>,
+        config: &CarConfig,
+        delta_seconds: f32,
+    ) {
+        let force_direction = global_steer_state * FORWARD_VECTOR;
+        cabin_body.apply_impulse_at_point(
+            force_direction
+                * config.throttle_force()
+                * f32::max(0.0, input.throttle())
+                * delta_seconds,
+            force_app_location,
+            true,
+        );
+    }
+
+    /// Apply force in the wheel back direction
+    /// based on input
+    fn simulate_brake(
+        cabin_body: &mut RigidBody,
+        input: &Input,
+        global_steer_state: &UnitQuaternion<f32>,
+        force_app_location: Point<f32>,
+        config: &CarConfig,
+        delta_seconds: f32,
+    ) {
+        let force_direction = global_steer_state * BACK_VECTOR;
+        cabin_body.apply_impulse_at_point(
+            force_direction * config.brake_force() * f32::max(0.0, input.brake()) * delta_seconds,
+            force_app_location,
+            true,
+        );
+    }
+
+    /// Make sure wheel restricts non-forward direction
+    /// movement based on its grip configuration
+    fn simulate_wheel_grip(
+        cabin_body: &mut RigidBody,
+        global_steer_state: &UnitQuaternion<f32>,
+        wheel_contact_location: Point<f32>,
+        config: &CarConfig,
+        wheel_mass: f32,
+        delta_seconds: f32,
+    ) {
+        let mut wheel_turn_velocity = cabin_body.velocity_at_point(&wheel_contact_location);
+        wheel_turn_velocity.y = 0.0;
+        let wheel_local_turn_velocity =
+            global_steer_state.inverse_transform_vector(&wheel_turn_velocity);
+
+        let mut wheel_local_turn_velocity_no_drift = wheel_local_turn_velocity;
+        wheel_local_turn_velocity_no_drift.x = 0.0;
+
+        let wheel_local_frame_goal_velocity = move_towards(
+            &wheel_local_turn_velocity,
+            &wheel_local_turn_velocity_no_drift,
+            2.0 * delta_seconds,
+        );
+
+        let wheel_local_frame_acceleration =
+            wheel_local_frame_goal_velocity - wheel_local_turn_velocity;
+
+        cabin_body.apply_impulse_at_point(
+            global_steer_state.transform_vector(&(wheel_local_frame_acceleration * wheel_mass)),
+            wheel_contact_location,
+            true,
+        );
+    }
+
+    /// Rotate wheel based on input
+    fn simulate_steering(
+        input: &Input,
+        wheel_orientation: &mut UnitQuaternion<f32>,
+        config: &CarConfig,
+    ) {
+        let steer_factor = input.steer();
+
+        let steer_lerp_t = remap(steer_factor, -1.0, 1.0, 0.0, 1.0);
+
+        wheel_orientation.clone_from(
+            &UnitQuaternion::from_axis_angle(
+                &Unit::new_normalize(UP_VECTOR),
+                config.wheel_left_turn_angle(),
+            )
+            .slerp(
+                &UnitQuaternion::from_axis_angle(
+                    &Unit::new_normalize(UP_VECTOR),
+                    config.wheel_right_turn_angle(),
+                ),
+                steer_lerp_t,
+            ),
+        );
+    }
+
+    fn update_boom_isometry(
+        cabin_body: &mut RigidBody,
+        boom: &mut Boom,
+        yaw_magnitude: f32,
+        pitch_magnitude: f32,
+        min_pitch_angle: f32,
+        max_pitch_angle: f32,
+    ) {
+        boom.translation = cabin_body.position().translation;
+
+        boom.z_rotation =
+            boom.z_rotation
+                .append_axisangle_linearized(&Vector3::new(0.0, yaw_magnitude, 0.0));
+
+        let (x_roll, x_pitch, x_yaw) = boom.x_rotation.euler_angles();
+        boom.x_rotation = UnitQuaternion::from_euler_angles(
+            (x_roll + pitch_magnitude)
+                .clamp(max_pitch_angle.to_radians(), min_pitch_angle.to_radians()),
+            x_pitch,
+            x_yaw,
+        );
+    }
+
+    fn prevent_camera_obstructions(
+        cabin_body: &mut RigidBody,
+        camera_boom: &mut Boom,
+        query_pipeline: &mut QueryPipeline,
+        rigid_body_set: &RigidBodySet,
+        collider_set: &ColliderSet,
+        query_filter_excluding_cabin: QueryFilter,
+        config: &CarConfig,
+    ) {
+        let body_translation = cabin_body.position().translation;
+        let diff_vec = camera_boom.end_isometry().translation.vector - body_translation.vector;
+        if let Some((_handle, hit_toi)) = query_pipeline.cast_ray(
+            rigid_body_set,
+            collider_set,
+            &Ray::new(
+                Point {
+                    coords: body_translation.vector,
+                },
+                diff_vec.normalize(),
+            ),
+            config.max_boom_length(),
+            true,
+            query_filter_excluding_cabin,
+        ) {
+            camera_boom.set_length(hit_toi - 0.03);
+        } else {
+            camera_boom.set_length(config.max_boom_length());
+        }
     }
 }
