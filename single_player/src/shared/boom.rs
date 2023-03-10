@@ -21,9 +21,9 @@ impl Boom {
     pub fn new(length: f32, arm_pitch_angle: f32, arm_yaw_angle: f32, look_at_pivot: bool) -> Self {
         let mut new_boom = Self {
             look_at_pivot,
+            length,
             ..Default::default()
         };
-        new_boom.set_length(length);
 
         new_boom.arm_pivot.rotation = UnitQuaternion::from_euler_angles(
             arm_pitch_angle.to_radians(),

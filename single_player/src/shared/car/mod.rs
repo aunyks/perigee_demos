@@ -38,11 +38,17 @@ pub struct Car {
     cabin_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
 }
 
+// impl Car {
+//     fn from_config(config: &CarConfig) -> Self {
+//         Self {}
+//     }
+// }
+
 impl Default for Car {
     fn default() -> Self {
         let car_config = CarConfig::default();
         Self {
-            config: car_config,
+            config: car_config.clone(),
             rigid_body_handle: RigidBodyHandle::default(),
             suspension_ray: Ray::new(Point::new(0.0, 0.0, 0.0), Vector3::new(0.0, -1.0, 0.0)),
             cabin_isometry: Isometry::default(),
@@ -210,18 +216,19 @@ impl Car {
                         query_filter.exclude_rigid_body(cabin_body_handle),
                     )
                 {
+                    let global_steer_state = wheel_global_iso.rotation
+                        * wheel_well.steer_state.unwrap_or(UnitQuaternion::identity());
+                    let wheel_body_attachment_point = wheel_global_iso * Point::origin();
+
                     Self::simulate_suspension(
                         &self.config,
                         &mut wheel_well.shock,
                         &shock_ray,
                         &intersection_details,
                         cabin_body,
+                        wheel_body_attachment_point,
                         delta_seconds,
                     );
-
-                    let global_steer_state = wheel_global_iso.rotation
-                        * wheel_well.steer_state.unwrap_or(UnitQuaternion::identity());
-                    let wheel_body_attachment_point = wheel_global_iso * Point::origin();
 
                     Self::simulate_brake(
                         cabin_body,
@@ -268,9 +275,9 @@ impl Car {
         shock_ray: &Ray,
         intersection_details: &RayIntersection,
         cabin_body: &mut RigidBody,
+        force_app_location: Point<f32>,
         delta_seconds: f32,
     ) {
-        let global_intersection_point = shock_ray.point_at(intersection_details.toi);
         let up = -shock_ray.dir;
 
         let spring_compression = config.suspension_max_length() - intersection_details.toi;
@@ -283,11 +290,7 @@ impl Car {
 
         let shock_force = spring_force - dampening_force;
 
-        cabin_body.apply_impulse_at_point(
-            shock_force * delta_seconds,
-            global_intersection_point,
-            true,
-        );
+        cabin_body.apply_impulse_at_point(shock_force * delta_seconds, force_app_location, true);
         shock.last_toi = intersection_details.toi;
     }
 
