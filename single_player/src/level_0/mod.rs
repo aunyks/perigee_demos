@@ -1,10 +1,8 @@
-use crate::config::CarConfig;
 use crate::shared::{car::Car, input::Input, player::Player, settings::GameSettings};
 use crate::{level_0::config::Level0Config, shared::events::PlayerEvent};
 use events::Level0Event;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::rc::Rc;
 
 mod config;
 mod events;
@@ -28,16 +26,18 @@ pub struct Sim<'a> {
 
 impl<'a> Default for Sim<'a> {
     fn default() -> Self {
-        let shared_car_config = Rc::new(CarConfig::default());
+        let config = Level0Config::default();
 
+        let player_config = config.player();
+        let car_config = config.car();
         let mut game = Self {
             version: (0, 0, 0),
-            config: Level0Config::default(),
+            config: config,
             settings: GameSettings::default(),
             input: Input::default(),
             physics: PhysicsWorld::default(),
-            player: Player::default(),
-            car: Car::from_config(shared_car_config),
+            player: Player::from_config(player_config),
+            car: Car::from_config(car_config),
             scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/0/scene.glb"),
             player_gltf_bytes: include_bytes!("../../../assets/gltf/shared/player-character.glb"),
             level_event_channel: EventChannel::default(),
@@ -54,16 +54,6 @@ impl<'a> Sim<'a> {
         let mut game = Self::default();
         game.configure(Some(config));
         game
-    }
-
-    /// Get a copy of the game's current configuration.
-    pub fn config(&self) -> Level0Config {
-        self.config
-    }
-
-    /// Get a copy of the game's current settings.
-    pub fn settings(&self) -> GameSettings {
-        self.settings
     }
 
     /// Reconfigure this game using the provided configuration.
@@ -99,13 +89,13 @@ impl<'a> Sim<'a> {
         self.pois.load_from_gltf(&scene_gltf).unwrap();
 
         let player_gltf = Gltf::from_slice(self.player_gltf_bytes).unwrap();
-        self.player = Player::with_config(self.config().player());
         self.player.add_to_physics_world(
             &mut self.physics.rigid_body_set,
             &mut self.physics.collider_set,
             None,
         );
         self.player.add_gltf_animations(&player_gltf);
+        self.player.set_scene_object_name(String::from("PLAYER"));
 
         self.car.add_to_physics_world(
             &mut self.physics.rigid_body_set,

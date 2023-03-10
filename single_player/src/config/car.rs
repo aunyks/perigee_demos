@@ -1,7 +1,7 @@
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Serialize, Deserialize, CopyGetters)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, CopyGetters)]
 pub struct WheelWellConfig {
     #[getset(get_copy = "pub")]
     receives_power: bool,
@@ -14,7 +14,7 @@ pub struct WheelWellConfig {
     steers_on_input: bool,
 }
 
-#[derive(Clone, Serialize, Deserialize, CopyGetters, Getters)]
+#[derive(Debug, Clone, Serialize, Deserialize, CopyGetters, Getters)]
 pub struct CarConfig {
     #[getset(get_copy = "pub")]
     cabin_half_width: f32,

@@ -1,19 +1,22 @@
-use crate::config::PlayerConfig;
+use crate::config::{CarConfig, PlayerConfig};
 use perigee::{
     config::PhysicsConfig,
     toml,
     traits::{TryFromToml, TryToToml},
 };
 use serde::{Deserialize, Serialize};
+use std::rc::Rc;
 
-#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Level0Config {
     #[serde(default)]
     level_event_queue_capacity: Option<usize>,
     #[serde(default)]
     physics: PhysicsConfig,
     #[serde(default)]
-    player: PlayerConfig,
+    player: Rc<PlayerConfig>,
+    #[serde(default)]
+    car: Rc<CarConfig>,
 }
 
 impl Default for Level0Config {
@@ -21,7 +24,8 @@ impl Default for Level0Config {
         Self {
             level_event_queue_capacity: Some(5),
             physics: PhysicsConfig::default(),
-            player: PlayerConfig::default(),
+            player: Rc::new(PlayerConfig::default()),
+            car: Rc::new(CarConfig::default()),
         }
     }
 }
@@ -53,8 +57,12 @@ impl Level0Config {
         self.physics
     }
 
-    pub fn player(&self) -> PlayerConfig {
-        self.player
+    pub fn player(&self) -> Rc<PlayerConfig> {
+        Rc::clone(&self.player)
+    }
+
+    pub fn car(&self) -> Rc<CarConfig> {
+        Rc::clone(&self.car)
     }
 }
 

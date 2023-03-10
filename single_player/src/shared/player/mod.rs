@@ -8,13 +8,14 @@ use crate::shared::settings::GameSettings;
 use crate::shared::vectors::*;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::rc::Rc;
 use std::time::Duration;
 
 mod shared;
 
 #[derive(Serialize, Deserialize)]
 pub struct Player {
-    config: PlayerConfig,
+    config: Rc<PlayerConfig>,
     scene_object_name: String,
     // Head up down rotation
     head_x_rotation: UnitQuaternion<f32>,
@@ -44,35 +45,32 @@ pub struct Player {
     animation_manager: AnimationManager,
 }
 
-impl Default for Player {
-    fn default() -> Self {
-        let player_config = PlayerConfig::default();
-
+impl Player {
+    pub fn from_config(config: Rc<PlayerConfig>) -> Self {
         Self {
-            config: player_config,
-            scene_object_name: String::from("PLAYER"),
-            head_x_rotation: UnitQuaternion::default(),
-            head_z_rotation: UnitQuaternion::default(),
-            head_isometry: Isometry::from(Vector3::from(
-                player_config.standing_head_translation_offset(),
-            )),
+            config: Rc::clone(&config),
+            // [P]re-[C]onfigured [P]layer
+            scene_object_name: String::from("PCP"),
+            head_x_rotation: UnitQuaternion::identity(),
+            head_z_rotation: UnitQuaternion::identity(),
+            head_isometry: Isometry::from(Vector3::from(config.standing_head_translation_offset())),
             body_isometry: Isometry::identity(),
             boom: Boom::new(
-                player_config.default_boom_arm_length(),
-                player_config.default_boom_arm_pitch_angle(),
-                player_config.default_boom_arm_yaw_angle(),
+                config.default_boom_arm_length(),
+                config.default_boom_arm_pitch_angle(),
+                config.default_boom_arm_yaw_angle(),
                 false,
             ),
             default_boom: Boom::new(
-                player_config.default_boom_arm_length(),
-                player_config.default_boom_arm_pitch_angle(),
-                player_config.default_boom_arm_yaw_angle(),
+                config.default_boom_arm_length(),
+                config.default_boom_arm_pitch_angle(),
+                config.default_boom_arm_yaw_angle(),
                 false,
             ),
             aim_boom: Boom::new(
-                player_config.aim_boom_arm_length(),
-                player_config.aim_boom_arm_pitch_angle(),
-                player_config.aim_boom_arm_yaw_angle(),
+                config.aim_boom_arm_length(),
+                config.aim_boom_arm_pitch_angle(),
+                config.aim_boom_arm_yaw_angle(),
                 false,
             ),
             perspective_mode: StateMachine::new(PerspectiveMode::default()),
@@ -88,22 +86,13 @@ impl Default for Player {
             coyote_timer: PassiveClock::default(),
             jump_cooldown_timer: PassiveClock::default(),
             sliding_state: StateMachine::new(SlidingState::None),
-            event_channel: EventChannel::default(),
+            event_channel: EventChannel::with_capacity(config.event_queue_capacity()),
             animation_manager: AnimationManager::default(),
         }
     }
 }
 
 impl Player {
-    /// Create a new player with the provided configuration.
-    pub fn with_config(config: PlayerConfig) -> Self {
-        Self {
-            config,
-            event_channel: EventChannel::with_capacity(config.event_queue_capacity()),
-            ..Default::default()
-        }
-    }
-
     pub fn add_gltf_animations(&mut self, gltf: &Gltf) {
         let animation_manager = AnimationManager::import_from_gltf(gltf);
         self.animation_manager.extend(animation_manager);
