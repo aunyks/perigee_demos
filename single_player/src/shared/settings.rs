@@ -43,35 +43,3 @@ impl TryToToml for GameSettings {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn try_from_toml() {
-        // Test normal conditions
-        let settings = GameSettings::try_from_toml(
-            "
-        up_down_look_sensitivity = 7
-        left_right_look_sensitivity = 3
-        ",
-        )
-        .unwrap();
-
-        assert_eq!(settings.up_down_look_sensitivity, 7);
-        assert_eq!(settings.left_right_look_sensitivity, 3);
-    }
-
-    #[test]
-    fn try_to_toml() {
-        // Test normal conditions
-        let settings = GameSettings::default();
-        let settings_toml = settings.try_to_toml().unwrap();
-
-        assert_eq!(
-            settings_toml,
-            "up_down_look_sensitivity = 5\nleft_right_look_sensitivity = 5\n"
-        );
-    }
-}

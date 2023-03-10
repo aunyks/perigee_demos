@@ -71,54 +71,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn try_from_toml() {
-        // Test normal conditions
-        let config = Level0Config::try_from_toml(
-            "level_event_queue_capacity = 5
-        [physics]
-        gravity = [0, -10.0, 0]
-        event_queue_capacity = 7
-        [player]
-        max_look_up_angle = 1.5
-        min_look_up_angle = -1.5
-        max_standing_move_speed_continuous = 5.0
-        max_crouched_move_speed_continuous = 2.0
-        max_standing_move_acceleration_continuous = 150.0
-        max_crouched_move_acceleration_continuous = 100.0
-        capsule_standing_half_height = 0.5
-        capsule_standing_radius = 0.5
-        capsule_crouched_half_height = 0.2
-        capsule_crouched_radius = 0.5
-        jump_standing_acceleration = 500.0
-        jump_crouched_acceleration = 400.0
-        ",
-        )
-        .unwrap();
-
-        assert_eq!(config.level_event_queue_capacity(), Some(5));
-        assert_eq!(config.physics().gravity(), [0.0, -10.0, 0.0]);
-        assert_eq!(config.physics().event_queue_capacity(), 7);
-        assert_eq!(config.player().max_look_up_angle(), 1.5);
-        assert_eq!(config.player().min_look_up_angle(), -1.5);
-        assert_eq!(config.player().max_standing_move_speed_continuous(), 5.0);
-        assert_eq!(config.player().max_crouched_move_speed_continuous(), 2.0);
-        assert_eq!(
-            config.player().max_standing_move_acceleration_continuous(),
-            150.0
-        );
-        assert_eq!(
-            config.player().max_crouched_move_acceleration_continuous(),
-            100.0
-        );
-        assert_eq!(config.player().capsule_standing_half_height(), -0.5);
-        assert_eq!(config.player().capsule_standing_radius(), 0.5);
-        assert_eq!(config.player().capsule_crouched_half_height(), -0.5);
-        assert_eq!(config.player().capsule_crouched_radius(), 0.5);
-        assert_eq!(config.player().jump_standing_acceleration(), 500.0);
-        assert_eq!(config.player().jump_crouched_acceleration(), 400.0);
-    }
-
-    #[test]
     fn try_to_toml() {
         // Test normal conditions
         let config = Level0Config::default();

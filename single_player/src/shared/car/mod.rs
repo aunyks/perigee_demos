@@ -349,12 +349,12 @@ impl Car {
         wheel_orientation.clone_from(
             &UnitQuaternion::from_axis_angle(
                 &Unit::new_normalize(UP_VECTOR),
-                config.wheel_left_turn_angle(),
+                config.wheel_left_turn_angle().to_radians(),
             )
             .slerp(
                 &UnitQuaternion::from_axis_angle(
                     &Unit::new_normalize(UP_VECTOR),
-                    config.wheel_right_turn_angle(),
+                    config.wheel_right_turn_angle().to_radians(),
                 ),
                 steer_lerp_t,
             ),
