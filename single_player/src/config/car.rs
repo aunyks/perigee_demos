@@ -33,6 +33,10 @@ pub struct CarConfig {
     min_look_up_angle: f32,
     #[getset(get_copy = "pub")]
     max_boom_length: f32,
+    #[getset(get_copy = "pub")]
+    initial_boom_pitch_angle: f32,
+    #[getset(get_copy = "pub")]
+    initial_boom_yaw_angle: f32,
 }
 
 impl Default for CarConfig {
@@ -41,13 +45,15 @@ impl Default for CarConfig {
             cabin_half_width: 0.5,
             cabin_half_height: 0.5,
             cabin_half_length: 1.0,
-            shock_spring_constant: 10.0,
-            shock_spring_dampening_factor: 3.0,
-            mass: 1.0,
+            shock_spring_constant: 15.0,
+            shock_spring_dampening_factor: 21.0,
+            mass: 4.0,
             suspension_max_length: 1.0,
-            brake_force: 5.0,
-            throttle_force: 5.0,
-            wheel_grip: 0.8,
+            initial_boom_pitch_angle: -10.0,
+            initial_boom_yaw_angle: 0.0,
+            brake_force: 20.0,
+            throttle_force: 20.0,
+            wheel_grip: 3.0,
             wheel_left_turn_angle: 45.0_f32.to_radians(),
             wheel_right_turn_angle: -45.0_f32.to_radians(),
             max_look_up_angle: 90.0,

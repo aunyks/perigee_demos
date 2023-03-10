@@ -46,7 +46,12 @@ impl Default for Car {
             rigid_body_handle: RigidBodyHandle::default(),
             suspension_ray: Ray::new(Point::new(0.0, 0.0, 0.0), Vector3::new(0.0, -1.0, 0.0)),
             cabin_isometry: Isometry::default(),
-            camera_boom: Boom::default(),
+            camera_boom: Boom::new(
+                car_config.max_boom_length(),
+                car_config.initial_boom_pitch_angle(),
+                car_config.initial_boom_yaw_angle(),
+                true,
+            ),
             suspension_system: vec![
                 WheelWell {
                     receives_power: true,
@@ -215,14 +220,14 @@ impl Car {
                     );
 
                     let global_steer_state = wheel_global_iso.rotation
-                        * wheel_well.steer_state.unwrap_or(UnitQuaternion::default());
-                    let wheel_contact_location = shock_ray.point_at(intersection_details.toi);
+                        * wheel_well.steer_state.unwrap_or(UnitQuaternion::identity());
+                    let wheel_body_attachment_point = wheel_global_iso * Point::origin();
 
                     Self::simulate_brake(
                         cabin_body,
                         &input,
                         &global_steer_state,
-                        wheel_contact_location,
+                        wheel_body_attachment_point,
                         &self.config,
                         delta_seconds,
                     );
@@ -234,7 +239,7 @@ impl Car {
                     Self::simulate_wheel_grip(
                         cabin_body,
                         &global_steer_state,
-                        wheel_contact_location,
+                        wheel_body_attachment_point,
                         &self.config,
                         cabin_body.mass() / (num_wheels as f32),
                         delta_seconds,
@@ -245,7 +250,7 @@ impl Car {
                             cabin_body,
                             &input,
                             &global_steer_state,
-                            wheel_contact_location,
+                            wheel_body_attachment_point,
                             &self.config,
                             delta_seconds,
                         );
@@ -330,23 +335,23 @@ impl Car {
     fn simulate_wheel_grip(
         cabin_body: &mut RigidBody,
         global_steer_state: &UnitQuaternion<f32>,
-        wheel_contact_location: Point<f32>,
+        force_app_location: Point<f32>,
         config: &CarConfig,
         wheel_mass: f32,
         delta_seconds: f32,
     ) {
-        let mut wheel_turn_velocity = cabin_body.velocity_at_point(&wheel_contact_location);
+        let mut wheel_turn_velocity = cabin_body.velocity_at_point(&force_app_location);
         wheel_turn_velocity.y = 0.0;
         let wheel_local_turn_velocity =
             global_steer_state.inverse_transform_vector(&wheel_turn_velocity);
 
-        let mut wheel_local_turn_velocity_no_drift = wheel_local_turn_velocity;
+        let mut wheel_local_turn_velocity_no_drift = wheel_local_turn_velocity.clone();
         wheel_local_turn_velocity_no_drift.x = 0.0;
 
         let wheel_local_frame_goal_velocity = move_towards(
             &wheel_local_turn_velocity,
             &wheel_local_turn_velocity_no_drift,
-            2.0 * delta_seconds,
+            config.wheel_grip() * delta_seconds,
         );
 
         let wheel_local_frame_acceleration =
@@ -354,7 +359,7 @@ impl Car {
 
         cabin_body.apply_impulse_at_point(
             global_steer_state.transform_vector(&(wheel_local_frame_acceleration * wheel_mass)),
-            wheel_contact_location,
+            force_app_location,
             true,
         );
     }

@@ -8,6 +8,7 @@ pub struct Boom {
     pub x_rotation: UnitQuaternion<f32>,
     arm_pivot: Isometry<f32, UnitQuaternion<f32>, 3>,
     length: f32,
+    look_at_pivot: bool,
 }
 
 impl std::fmt::Debug for Boom {
@@ -17,8 +18,11 @@ impl std::fmt::Debug for Boom {
 }
 
 impl Boom {
-    pub fn new(length: f32, arm_pitch_angle: f32, arm_yaw_angle: f32) -> Self {
-        let mut new_boom = Self::default();
+    pub fn new(length: f32, arm_pitch_angle: f32, arm_yaw_angle: f32, look_at_pivot: bool) -> Self {
+        let mut new_boom = Self {
+            look_at_pivot,
+            ..Default::default()
+        };
         new_boom.set_length(length);
 
         new_boom.arm_pivot.rotation = UnitQuaternion::from_euler_angles(
@@ -47,7 +51,11 @@ impl Boom {
             * self.arm_pivot
             * Isometry::from_parts(
                 Translation::from(Vector3::new(0.0, 0.0, self.length)),
-                self.arm_pivot.rotation.inverse(),
+                if self.look_at_pivot {
+                    UnitQuaternion::identity()
+                } else {
+                    self.arm_pivot.rotation.inverse()
+                },
             )
     }
 
