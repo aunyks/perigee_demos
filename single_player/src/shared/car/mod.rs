@@ -7,6 +7,7 @@ use crate::shared::vectors::*;
 use perigee::prelude::*;
 use perigee::rapier3d::na::Translation3;
 use serde::{Deserialize, Serialize};
+use std::rc::Rc;
 
 #[derive(Serialize, Deserialize)]
 struct Shock {
@@ -49,7 +50,7 @@ impl WheelWell {
 
 #[derive(Serialize, Deserialize)]
 pub struct Car {
-    config: CarConfig,
+    config: Rc<CarConfig>,
     camera_boom: Boom,
     rigid_body_handle: RigidBodyHandle,
     suspension_ray: Ray,
@@ -58,7 +59,7 @@ pub struct Car {
 }
 
 impl Car {
-    fn from_config(config: &CarConfig) -> Self {
+    pub fn from_config(config: Rc<CarConfig>) -> Self {
         let mut wheel_wells: Vec<WheelWell> = Vec::with_capacity(config.wheel_wells().len());
         for well_config in config.wheel_wells() {
             wheel_wells.push(WheelWell::from_config(
@@ -67,7 +68,7 @@ impl Car {
             ));
         }
         Self {
-            config: config.clone(),
+            config: Rc::clone(&config),
             rigid_body_handle: RigidBodyHandle::default(),
             suspension_ray: Ray::new(Point::new(0.0, 0.0, 0.0), Vector3::new(0.0, -1.0, 0.0)),
             cabin_isometry: Isometry::default(),
@@ -80,17 +81,7 @@ impl Car {
             suspension_system: wheel_wells,
         }
     }
-}
 
-impl Default for Car {
-    fn default() -> Self {
-        let car_config = CarConfig::default();
-
-        Self::from_config(&car_config)
-    }
-}
-
-impl Car {
     pub fn add_to_physics_world(
         &mut self,
         rigid_body_set: &mut RigidBodySet,

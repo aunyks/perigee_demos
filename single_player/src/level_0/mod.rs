@@ -1,8 +1,10 @@
+use crate::config::CarConfig;
 use crate::shared::{car::Car, input::Input, player::Player, settings::GameSettings};
 use crate::{level_0::config::Level0Config, shared::events::PlayerEvent};
 use events::Level0Event;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::rc::Rc;
 
 mod config;
 mod events;
@@ -26,6 +28,8 @@ pub struct Sim<'a> {
 
 impl<'a> Default for Sim<'a> {
     fn default() -> Self {
+        let shared_car_config = Rc::new(CarConfig::default());
+
         let mut game = Self {
             version: (0, 0, 0),
             config: Level0Config::default(),
@@ -33,7 +37,7 @@ impl<'a> Default for Sim<'a> {
             input: Input::default(),
             physics: PhysicsWorld::default(),
             player: Player::default(),
-            car: Car::default(),
+            car: Car::from_config(shared_car_config),
             scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/0/scene.glb"),
             player_gltf_bytes: include_bytes!("../../../assets/gltf/shared/player-character.glb"),
             level_event_channel: EventChannel::default(),
