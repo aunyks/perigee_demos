@@ -1,4 +1,4 @@
-use crate::config::CarConfig;
+use crate::config::car::{CarConfig, WheelWellConfig};
 use crate::shared::boom::Boom;
 use crate::shared::input::Input;
 use crate::shared::interactions::InteractionGroup;
@@ -28,6 +28,25 @@ struct WheelWell {
     pub receives_power: bool,
 }
 
+impl WheelWell {
+    pub fn from_config(config: &WheelWellConfig, default_suspension_max_length: f32) -> Self {
+        Self {
+            receives_power: config.receives_power(),
+            steer_state: if config.steers_on_input() {
+                Some(UnitQuaternion::identity())
+            } else {
+                None
+            },
+            shock: Shock {
+                translation: Translation::from(config.center_cabin_relative_position()),
+                last_toi: config
+                    .suspension_max_length()
+                    .unwrap_or(default_suspension_max_length),
+            },
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Car {
     config: CarConfig,
@@ -38,77 +57,36 @@ pub struct Car {
     cabin_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
 }
 
-// impl Car {
-//     fn from_config(config: &CarConfig) -> Self {
-//         Self {}
-//     }
-// }
-
-impl Default for Car {
-    fn default() -> Self {
-        let car_config = CarConfig::default();
+impl Car {
+    fn from_config(config: &CarConfig) -> Self {
+        let mut wheel_wells: Vec<WheelWell> = Vec::with_capacity(config.wheel_wells().len());
+        for well_config in config.wheel_wells() {
+            wheel_wells.push(WheelWell::from_config(
+                well_config,
+                config.suspension_max_length(),
+            ));
+        }
         Self {
-            config: car_config.clone(),
+            config: config.clone(),
             rigid_body_handle: RigidBodyHandle::default(),
             suspension_ray: Ray::new(Point::new(0.0, 0.0, 0.0), Vector3::new(0.0, -1.0, 0.0)),
             cabin_isometry: Isometry::default(),
             camera_boom: Boom::new(
-                car_config.max_boom_length(),
-                car_config.initial_boom_pitch_angle(),
-                car_config.initial_boom_yaw_angle(),
+                config.max_boom_length(),
+                config.initial_boom_pitch_angle(),
+                config.initial_boom_yaw_angle(),
                 true,
             ),
-            suspension_system: vec![
-                WheelWell {
-                    receives_power: true,
-                    shock: Shock {
-                        translation: Translation3::from(Vector3::new(
-                            -car_config.cabin_half_width(),
-                            -car_config.cabin_half_height(),
-                            -car_config.cabin_half_length(),
-                        )),
-                        last_toi: car_config.suspension_max_length(),
-                    },
-                    steer_state: Some(UnitQuaternion::default()),
-                },
-                WheelWell {
-                    receives_power: true,
-                    shock: Shock {
-                        translation: Translation3::from(Vector3::new(
-                            car_config.cabin_half_width(),
-                            -car_config.cabin_half_height(),
-                            -car_config.cabin_half_length(),
-                        )),
-                        last_toi: car_config.suspension_max_length(),
-                    },
-                    steer_state: Some(UnitQuaternion::default()),
-                },
-                WheelWell {
-                    receives_power: false,
-                    shock: Shock {
-                        translation: Translation3::from(Vector3::new(
-                            -car_config.cabin_half_width(),
-                            -car_config.cabin_half_height(),
-                            car_config.cabin_half_length(),
-                        )),
-                        last_toi: car_config.suspension_max_length(),
-                    },
-                    steer_state: None,
-                },
-                WheelWell {
-                    receives_power: false,
-                    shock: Shock {
-                        translation: Translation3::from(Vector3::new(
-                            car_config.cabin_half_width(),
-                            -car_config.cabin_half_height(),
-                            car_config.cabin_half_length(),
-                        )),
-                        last_toi: car_config.suspension_max_length(),
-                    },
-                    steer_state: None,
-                },
-            ],
+            suspension_system: wheel_wells,
         }
+    }
+}
+
+impl Default for Car {
+    fn default() -> Self {
+        let car_config = CarConfig::default();
+
+        Self::from_config(&car_config)
     }
 }
 

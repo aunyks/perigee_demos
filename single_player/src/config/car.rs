@@ -10,6 +10,8 @@ pub struct WheelWellConfig {
     /// If `None` then default to the car suspension max length
     #[getset(get_copy = "pub")]
     suspension_max_length: Option<f32>,
+    #[getset(get_copy = "pub")]
+    steers_on_input: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize, CopyGetters, Getters)]
@@ -49,7 +51,7 @@ pub struct CarConfig {
     #[getset(get_copy = "pub")]
     initial_boom_yaw_angle: f32,
     #[getset(get = "pub")]
-    wheels: Vec<WheelWellConfig>,
+    wheel_wells: Vec<WheelWellConfig>,
 }
 
 impl Default for CarConfig {
@@ -75,7 +77,7 @@ impl Default for CarConfig {
             max_look_up_angle: 90.0,
             min_look_up_angle: -60.0,
             max_boom_length: 3.0,
-            wheels: vec![
+            wheel_wells: vec![
                 WheelWellConfig {
                     suspension_max_length: None,
                     receives_power: true,
@@ -84,6 +86,7 @@ impl Default for CarConfig {
                         -cabin_half_height,
                         -cabin_half_length,
                     ],
+                    steers_on_input: true,
                 },
                 WheelWellConfig {
                     suspension_max_length: None,
@@ -93,6 +96,7 @@ impl Default for CarConfig {
                         -cabin_half_height,
                         -cabin_half_length,
                     ],
+                    steers_on_input: true,
                 },
                 WheelWellConfig {
                     suspension_max_length: None,
@@ -102,6 +106,7 @@ impl Default for CarConfig {
                         -cabin_half_height,
                         cabin_half_length,
                     ],
+                    steers_on_input: false,
                 },
                 WheelWellConfig {
                     suspension_max_length: None,
@@ -111,6 +116,7 @@ impl Default for CarConfig {
                         -cabin_half_height,
                         cabin_half_length,
                     ],
+                    steers_on_input: false,
                 },
             ],
         }
