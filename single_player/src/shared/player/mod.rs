@@ -90,9 +90,7 @@ impl Player {
             animation_manager: AnimationManager::default(),
         }
     }
-}
 
-impl Player {
     pub fn add_gltf_animations(&mut self, gltf: &Gltf) {
         let animation_manager = AnimationManager::import_from_gltf(gltf);
         self.animation_manager.extend(animation_manager);
