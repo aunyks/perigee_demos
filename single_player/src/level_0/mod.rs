@@ -1,10 +1,9 @@
 use crate::shared::{car::Car, input::Input, player::Player, settings::GameSettings};
-use crate::{level_0::config::Level0Config, shared::events::PlayerEvent};
+use crate::{config::Level0Config, shared::events::PlayerEvent};
 use events::Level0Event;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
 
-mod config;
 mod events;
 
 #[derive(Serialize, Deserialize)]
