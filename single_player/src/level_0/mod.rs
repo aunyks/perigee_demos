@@ -27,16 +27,16 @@ impl<'a> Default for Sim<'a> {
     fn default() -> Self {
         let config = Level0Config::default();
 
-        let player_config = config.player();
-        let car_config = config.car();
+        let player = Player::from_config(config.player());
+        let car = Car::from_config(config.car());
         let mut game = Self {
             version: (0, 0, 0),
-            config: config,
+            config,
+            player,
+            car,
             settings: GameSettings::default(),
             input: Input::default(),
             physics: PhysicsWorld::default(),
-            player: Player::from_config(player_config),
-            car: Car::from_config(car_config),
             scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/0/scene.glb"),
             player_gltf_bytes: include_bytes!("../../../assets/gltf/shared/player-character.glb"),
             level_event_channel: EventChannel::default(),

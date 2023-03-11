@@ -59,7 +59,7 @@ pub struct Car {
 }
 
 impl Car {
-    pub fn from_config(config: Rc<CarConfig>) -> Self {
+    pub fn from_config(config: &Rc<CarConfig>) -> Self {
         let mut wheel_wells: Vec<WheelWell> = Vec::with_capacity(config.wheel_wells().len());
         for well_config in config.wheel_wells() {
             wheel_wells.push(WheelWell::from_config(
@@ -68,7 +68,7 @@ impl Car {
             ));
         }
         Self {
-            config: Rc::clone(&config),
+            config: Rc::clone(config),
             rigid_body_handle: RigidBodyHandle::default(),
             suspension_ray: Ray::new(Point::new(0.0, 0.0, 0.0), Vector3::new(0.0, -1.0, 0.0)),
             cabin_isometry: Isometry::default(),

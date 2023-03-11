@@ -46,9 +46,9 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn from_config(config: Rc<PlayerConfig>) -> Self {
+    pub fn from_config(config: &Rc<PlayerConfig>) -> Self {
         Self {
-            config: Rc::clone(&config),
+            config: Rc::clone(config),
             // [P]re-[C]onfigured [P]layer
             scene_object_name: String::from("PCP"),
             head_x_rotation: UnitQuaternion::identity(),

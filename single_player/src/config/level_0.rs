@@ -57,12 +57,12 @@ impl Level0Config {
         self.physics
     }
 
-    pub fn player(&self) -> Rc<PlayerConfig> {
-        Rc::clone(&self.player)
+    pub fn player(&self) -> &Rc<PlayerConfig> {
+        &self.player
     }
 
-    pub fn car(&self) -> Rc<CarConfig> {
-        Rc::clone(&self.car)
+    pub fn car(&self) -> &Rc<CarConfig> {
+        &self.car
     }
 }
 
