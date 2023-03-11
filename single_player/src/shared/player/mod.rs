@@ -1,4 +1,4 @@
-use crate::config::PlayerConfig;
+use crate::config::player::{MovementMode, PerspectiveMode, PlayerConfig};
 use crate::shared::boom::Boom;
 use crate::shared::events::PlayerEvent;
 use crate::shared::input::Input;
@@ -10,8 +10,6 @@ use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 use std::time::Duration;
-
-use crate::shared::traits::FromConfig;
 
 mod shared;
 
@@ -76,8 +74,8 @@ impl FromConfig for Player {
                 config.aim_boom_arm_yaw_angle(),
                 false,
             ),
-            perspective_mode: StateMachine::new(PerspectiveMode::default()),
-            movement_mode: StateMachine::new(MovementMode::default()),
+            perspective_mode: StateMachine::new(config.initial_perspective_mode()),
+            movement_mode: StateMachine::new(config.movement_mode()),
             movement_state: StateMachine::new(MovementState::default()),
             body_linear_velocity: Vector3::default(),
             rigid_body_handle: RigidBodyHandle::from_raw_parts(0, 0),

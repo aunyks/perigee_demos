@@ -1,4 +1,3 @@
-use crate::shared::traits::FromConfig;
 use crate::shared::{car::Car, input::Input, player::Player, settings::GameSettings};
 use crate::{config::Level0Config, shared::events::PlayerEvent};
 use events::Level0Event;
@@ -28,6 +27,7 @@ impl<'a> Default for Sim<'a> {
     fn default() -> Self {
         let config = Level0Config::default();
 
+        let physics = PhysicsWorld::from_config(config.physics());
         let player = Player::from_config(config.player());
         let car = Car::from_config(config.car());
         let mut game = Self {
@@ -35,9 +35,9 @@ impl<'a> Default for Sim<'a> {
             config,
             player,
             car,
+            physics,
             settings: GameSettings::default(),
             input: Input::default(),
-            physics: PhysicsWorld::default(),
             scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/0/scene.glb"),
             player_gltf_bytes: include_bytes!("../../../assets/gltf/shared/player-character.glb"),
             level_event_channel: EventChannel::default(),
@@ -61,7 +61,6 @@ impl<'a> Sim<'a> {
         if let Some(config) = new_config {
             self.config = config;
         }
-        self.physics = PhysicsWorld::with_config(self.config.physics());
         if let Some(queue_cap) = self.config.level_event_queue_capacity() {
             self.level_event_channel = EventChannel::with_capacity(queue_cap);
         }

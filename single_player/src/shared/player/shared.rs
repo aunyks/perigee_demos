@@ -47,37 +47,6 @@ pub fn query_filter_excluding_player() -> QueryFilter<'static> {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-pub enum PerspectiveMode {
-    FirstPerson,
-    ThirdPersonBasic,
-    ThirdPersonCombat,
-}
-
-impl Default for PerspectiveMode {
-    fn default() -> Self {
-        Self::ThirdPersonBasic
-    }
-}
-
-impl PerspectiveMode {
-    pub fn is_third_person(&self) -> bool {
-        self == &PerspectiveMode::ThirdPersonBasic || self == &PerspectiveMode::ThirdPersonCombat
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-pub enum MovementMode {
-    Discrete,
-    Continuous,
-}
-
-impl Default for MovementMode {
-    fn default() -> Self {
-        Self::Discrete
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WalkDirection {
     Forward,

@@ -1,6 +1,30 @@
 use getset::CopyGetters;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub enum PerspectiveMode {
+    #[serde(rename = "first-person")]
+    FirstPerson,
+    #[serde(rename = "third-person-basic")]
+    ThirdPersonBasic,
+    #[serde(rename = "third-person-combat")]
+    ThirdPersonCombat,
+}
+
+impl PerspectiveMode {
+    pub fn is_third_person(&self) -> bool {
+        self == &PerspectiveMode::ThirdPersonBasic || self == &PerspectiveMode::ThirdPersonCombat
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub enum MovementMode {
+    #[serde(rename = "discrete")]
+    Discrete,
+    #[serde(rename = "continuous")]
+    Continuous,
+}
+
 /// Configuration parameters for the [FirstPersonPlayer](crate::shared::player::FirstPersonPlayer).
 /// These should not be editable at runtime.
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, CopyGetters)]
@@ -214,6 +238,10 @@ pub struct PlayerConfig {
     /// The lerp factor for the player body to rotate in the player's movement direction.
     #[getset(get_copy = "pub")]
     rotate_body_to_movement_dir_lerp_factor: f32,
+    #[getset(get_copy = "pub")]
+    initial_perspective_mode: PerspectiveMode,
+    #[getset(get_copy = "pub")]
+    movement_mode: MovementMode,
 }
 
 impl Default for PlayerConfig {
@@ -290,6 +318,8 @@ impl Default for PlayerConfig {
             aim_boom_arm_yaw_angle: 20.0,
             tpcombat_boom_rotation_lerp_factor: 0.9,
             rotate_body_to_movement_dir_lerp_factor: 0.999,
+            initial_perspective_mode: PerspectiveMode::ThirdPersonBasic,
+            movement_mode: MovementMode::Discrete,
         }
     }
 }

@@ -3,7 +3,6 @@ use crate::shared::boom::Boom;
 use crate::shared::input::Input;
 use crate::shared::interactions::InteractionGroup;
 use crate::shared::settings::GameSettings;
-use crate::shared::traits::FromConfig;
 use crate::shared::vectors::*;
 use perigee::prelude::*;
 use perigee::rapier3d::na::Translation3;

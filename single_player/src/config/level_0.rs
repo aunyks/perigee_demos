@@ -53,8 +53,8 @@ impl Level0Config {
         self.level_event_queue_capacity
     }
 
-    pub fn physics(&self) -> PhysicsConfig {
-        self.physics
+    pub fn physics(&self) -> &PhysicsConfig {
+        &self.physics
     }
 
     pub fn player(&self) -> &Rc<PlayerConfig> {
