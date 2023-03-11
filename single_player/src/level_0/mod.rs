@@ -23,14 +23,21 @@ pub struct Sim<'a> {
     pub input: Input,
 }
 
-impl<'a> Default for Sim<'a> {
-    fn default() -> Self {
-        let config = Level0Config::default();
+impl<'a> FromConfig for Sim<'a> {
+    type Config<'b> = Level0Config;
 
+    fn from_config<'b>(config: Self::Config<'b>) -> Self {
         let physics = PhysicsWorld::from_config(config.physics());
         let player = Player::from_config(config.player());
         let car = Car::from_config(config.car());
-        let mut game = Self {
+
+        let level_event_channel = if let Some(queue_cap) = config.level_event_queue_capacity() {
+            EventChannel::with_capacity(queue_cap)
+        } else {
+            EventChannel::default()
+        };
+
+        Self {
             version: (0, 0, 0),
             config,
             player,
@@ -40,32 +47,24 @@ impl<'a> Default for Sim<'a> {
             input: Input::default(),
             scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/0/scene.glb"),
             player_gltf_bytes: include_bytes!("../../../assets/gltf/shared/player-character.glb"),
-            level_event_channel: EventChannel::default(),
+            level_event_channel: level_event_channel,
             pois: PointsOfInterest::default(),
-        };
-        game.configure(None);
-        game
+        }
+    }
+
+    fn set_config<'b>(&mut self, _config: Self::Config<'b>) {
+        warn!("Level 0 Sim doesn't allow resetting configuration");
+    }
+}
+
+impl<'a> Default for Sim<'a> {
+    fn default() -> Self {
+        Self::from_config(Level0Config::default())
     }
 }
 
 // Simple setup and accessors
 impl<'a> Sim<'a> {
-    pub fn with_config(config: Level0Config) -> Self {
-        let mut game = Self::default();
-        game.configure(Some(config));
-        game
-    }
-
-    /// Reconfigure this game using the provided configuration.
-    pub fn configure(&mut self, new_config: Option<Level0Config>) {
-        if let Some(config) = new_config {
-            self.config = config;
-        }
-        if let Some(queue_cap) = self.config.level_event_queue_capacity() {
-            self.level_event_channel = EventChannel::with_capacity(queue_cap);
-        }
-    }
-
     pub fn get_level_event(&self) -> Result<Level0Event, TryRecvError> {
         self.level_event_channel.get_message()
     }
