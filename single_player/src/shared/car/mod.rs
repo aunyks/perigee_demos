@@ -3,6 +3,7 @@ use crate::shared::boom::Boom;
 use crate::shared::input::Input;
 use crate::shared::interactions::InteractionGroup;
 use crate::shared::settings::GameSettings;
+use crate::shared::traits::FromConfig;
 use crate::shared::vectors::*;
 use perigee::prelude::*;
 use perigee::rapier3d::na::Translation3;
@@ -58,8 +59,9 @@ pub struct Car {
     cabin_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
 }
 
-impl Car {
-    pub fn from_config(config: &Rc<CarConfig>) -> Self {
+impl FromConfig for Car {
+    type Config<'a> = &'a Rc<CarConfig>;
+    fn from_config<'a>(config: Self::Config<'a>) -> Self {
         let mut wheel_wells: Vec<WheelWell> = Vec::with_capacity(config.wheel_wells().len());
         for well_config in config.wheel_wells() {
             wheel_wells.push(WheelWell::from_config(
@@ -82,6 +84,12 @@ impl Car {
         }
     }
 
+    fn set_config<'a>(&mut self, config: Self::Config<'a>) {
+        self.config = Rc::clone(config);
+    }
+}
+
+impl Car {
     pub fn add_to_physics_world(
         &mut self,
         rigid_body_set: &mut RigidBodySet,

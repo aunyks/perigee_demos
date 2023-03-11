@@ -5,6 +5,7 @@ pub mod input;
 pub mod interactions;
 pub mod player;
 pub mod settings;
+pub mod traits;
 
 pub mod vectors {
     use perigee::rapier3d::na::Vector3;

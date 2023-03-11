@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 use std::time::Duration;
 
+use crate::shared::traits::FromConfig;
+
 mod shared;
 
 #[derive(Serialize, Deserialize)]
@@ -45,8 +47,9 @@ pub struct Player {
     animation_manager: AnimationManager,
 }
 
-impl Player {
-    pub fn from_config(config: &Rc<PlayerConfig>) -> Self {
+impl FromConfig for Player {
+    type Config<'a> = &'a Rc<PlayerConfig>;
+    fn from_config<'a>(config: Self::Config<'a>) -> Self {
         Self {
             config: Rc::clone(config),
             // [P]re-[C]onfigured [P]layer
@@ -91,6 +94,12 @@ impl Player {
         }
     }
 
+    fn set_config<'a>(&mut self, config: Self::Config<'a>) {
+        self.config = Rc::clone(config);
+    }
+}
+
+impl Player {
     pub fn add_gltf_animations(&mut self, gltf: &Gltf) {
         let animation_manager = AnimationManager::import_from_gltf(gltf);
         self.animation_manager.extend(animation_manager);

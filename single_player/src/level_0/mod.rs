@@ -1,3 +1,4 @@
+use crate::shared::traits::FromConfig;
 use crate::shared::{car::Car, input::Input, player::Player, settings::GameSettings};
 use crate::{config::Level0Config, shared::events::PlayerEvent};
 use events::Level0Event;
