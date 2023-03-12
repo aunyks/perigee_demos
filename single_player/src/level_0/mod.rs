@@ -1,5 +1,9 @@
-use crate::shared::{car::Car, input::Input, player::Player, settings::GameSettings};
-use crate::{config::Level0Config, shared::events::PlayerEvent};
+use crate::shared::{
+    controllers::{Car, CharacterController},
+    input::Input,
+    settings::GameSettings,
+};
+use crate::{config::Level0Config, shared::events::CharacterControllerEvent};
 use events::Level0Event;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -13,7 +17,7 @@ pub struct Sim<'a> {
     pub settings: GameSettings,
     pub physics: PhysicsWorld,
     pois: PointsOfInterest,
-    pub player: Player,
+    pub player: CharacterController,
     pub car: Car,
     scene_gltf_bytes: &'a [u8],
     player_gltf_bytes: &'a [u8],
@@ -28,7 +32,7 @@ impl<'a> FromConfig for Sim<'a> {
 
     fn from_config<'b>(config: Self::Config<'b>) -> Self {
         let physics = PhysicsWorld::from_config(config.physics());
-        let player = Player::from_config(config.player());
+        let player = CharacterController::from_config(config.character_controller());
         let car = Car::from_config(config.car());
 
         let level_event_channel = if let Some(queue_cap) = config.level_event_queue_capacity() {
@@ -253,12 +257,12 @@ impl<'a> Sim<'a> {
         // Ease the pressure of this channel
         while let Ok(player_event) = self.player.get_event() {
             match player_event {
-                PlayerEvent::Stepped => play_2d_audio("PLAYER_STEP"),
-                PlayerEvent::Jump => play_2d_audio("PLAYER_JUMP"),
-                PlayerEvent::StartedWallRunning => loop_2d_audio("PLAYER_WALLRUN"),
-                PlayerEvent::StoppedWallRunning => stop_2d_audio("PLAYER_WALLRUN"),
-                PlayerEvent::StartedSliding => loop_2d_audio("PLAYER_SLIDE"),
-                PlayerEvent::StoppedSliding => stop_2d_audio("PLAYER_SLIDE"),
+                CharacterControllerEvent::Stepped => play_2d_audio("PLAYER_STEP"),
+                CharacterControllerEvent::Jump => play_2d_audio("PLAYER_JUMP"),
+                CharacterControllerEvent::StartedWallRunning => loop_2d_audio("PLAYER_WALLRUN"),
+                CharacterControllerEvent::StoppedWallRunning => stop_2d_audio("PLAYER_WALLRUN"),
+                CharacterControllerEvent::StartedSliding => loop_2d_audio("PLAYER_SLIDE"),
+                CharacterControllerEvent::StoppedSliding => stop_2d_audio("PLAYER_SLIDE"),
                 _ => {}
             };
         }

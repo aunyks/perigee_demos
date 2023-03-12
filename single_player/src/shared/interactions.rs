@@ -5,7 +5,7 @@ pub enum InteractionGroup {
     All,
     StaticLevelObjects,
     DynamicLevelObjects,
-    Player,
+    CharacterController,
 }
 
 impl From<InteractionGroup> for u32 {
@@ -15,13 +15,13 @@ impl From<InteractionGroup> for u32 {
         // to control which groups can interact with others.
         //
         // For example, if an object should collide with more than one interaction group,
-        // you can define that as StaticLevelObjects | DynamicLevelObjects | Player. Conversely,
-        // If it should interact with all groups but a few, you can define that as DynamicLevelObjects ^ Player
+        // you can define that as StaticLevelObjects | DynamicLevelObjects | CharacterController. Conversely,
+        // If it should interact with all groups but a few, you can define that as DynamicLevelObjects ^ CharacterController
         match group {
             InteractionGroup::All => u32::MAX,
             InteractionGroup::StaticLevelObjects => 2u32.pow(0),
             InteractionGroup::DynamicLevelObjects => 2u32.pow(1),
-            InteractionGroup::Player => 2u32.pow(2),
+            InteractionGroup::CharacterController => 2u32.pow(2),
         }
     }
 }

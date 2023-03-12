@@ -1,3 +1,3 @@
-pub mod player;
+pub mod character_controller;
 
-pub use player::*;
+pub use character_controller::*;

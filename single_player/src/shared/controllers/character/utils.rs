@@ -40,9 +40,12 @@ impl Eq for WallRunning {}
 
 pub fn query_filter_excluding_player() -> QueryFilter<'static> {
     QueryFilter {
-        groups: Some(InteractionGroups::all().with_filter(
-            Group::from_bits_truncate(u32::from(InteractionGroup::Player)).complement(),
-        )),
+        groups: Some(
+            InteractionGroups::all().with_filter(
+                Group::from_bits_truncate(u32::from(InteractionGroup::CharacterController))
+                    .complement(),
+            ),
+        ),
         ..Default::default()
     }
 }

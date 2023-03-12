@@ -1,9 +1,11 @@
-use crate::config::player::{MovementMode, PerspectiveMode, PlayerConfig};
+use crate::config::character_controller::{
+    CharacterControllerConfig, MovementMode, PerspectiveMode,
+};
 use crate::shared::boom::Boom;
-use crate::shared::events::PlayerEvent;
+use crate::shared::controllers::character::utils::*;
+use crate::shared::events::CharacterControllerEvent;
 use crate::shared::input::Input;
 use crate::shared::interactions::InteractionGroup;
-use crate::shared::player::utils::*;
 use crate::shared::settings::GameSettings;
 use crate::shared::vectors::*;
 use perigee::prelude::*;
@@ -14,8 +16,8 @@ use std::time::Duration;
 mod utils;
 
 #[derive(Serialize, Deserialize)]
-pub struct Player {
-    config: Rc<PlayerConfig>,
+pub struct CharacterController {
+    config: Rc<CharacterControllerConfig>,
     scene_object_name: String,
     // Head up down rotation
     head_x_rotation: UnitQuaternion<f32>,
@@ -40,13 +42,13 @@ pub struct Player {
     jump_cooldown_timer: PassiveClock,
     sliding_state: StateMachine<SlidingState>,
     #[serde(skip)]
-    event_channel: EventChannel<PlayerEvent>,
+    event_channel: EventChannel<CharacterControllerEvent>,
     #[serde(skip)]
     animation_manager: AnimationManager,
 }
 
-impl FromConfig for Player {
-    type Config<'a> = &'a Rc<PlayerConfig>;
+impl FromConfig for CharacterController {
+    type Config<'a> = &'a Rc<CharacterControllerConfig>;
     fn from_config<'a>(config: Self::Config<'a>) -> Self {
         Self {
             config: Rc::clone(config),
@@ -97,13 +99,15 @@ impl FromConfig for Player {
     }
 }
 
-impl Player {
+impl CharacterController {
     pub fn add_gltf_animations(&mut self, gltf: &Gltf) {
         let animation_manager = AnimationManager::import_from_gltf(gltf);
         self.animation_manager.extend(animation_manager);
         let player_event_sender = self.event_channel.clone_sender();
         let on_run_step = move || {
-            player_event_sender.send(PlayerEvent::Stepped).unwrap();
+            player_event_sender
+                .send(CharacterControllerEvent::Stepped)
+                .unwrap();
         };
         self.animation_manager
             .get_mut("SPRINT_FORWARD")
@@ -121,21 +125,22 @@ impl Player {
         self.scene_object_name = name;
     }
 
-    fn scene_object_name(&self) -> String {
+    pub fn scene_object_name(&self) -> String {
         // TODO: Hopefully the compiler knows not
         // to actually clone this and cause leaks
         self.scene_object_name.clone()
     }
 
-    pub fn get_event(&self) -> Result<PlayerEvent, TryRecvError> {
+    pub fn get_event(&self) -> Result<CharacterControllerEvent, TryRecvError> {
         self.event_channel.get_message()
     }
 
     fn build_collider(&self, capsule_half_height: f32, capsule_radius: f32) -> Collider {
         ColliderBuilder::capsule_y(capsule_half_height, capsule_radius)
             .collision_groups(
-                InteractionGroups::all()
-                    .with_memberships(Group::from_bits_truncate(InteractionGroup::Player.into())),
+                InteractionGroups::all().with_memberships(Group::from_bits_truncate(
+                    InteractionGroup::CharacterController.into(),
+                )),
             )
             // Listen for *all* collision and intersection events with
             // this collider
@@ -145,7 +150,7 @@ impl Player {
             .build()
     }
 
-    fn capsule_values(&self) -> (f32, f32) {
+    pub fn capsule_values(&self) -> (f32, f32) {
         match self.crouch_state.current_state() {
             CrouchState::Upright => (
                 self.config.capsule_standing_half_height(),
@@ -158,10 +163,10 @@ impl Player {
         }
     }
 
-    /// Create a rigid body and collider for the player based on the the provided configuration parameters
+    /// Create a rigid body and collider for the character controller based on the the provided configuration parameters
     /// and / or default parameters, then add them to the provided `RigidBodySet` and `ColliderSet`.
     ///
-    /// This should be called after creating the player and before updating the player.
+    /// This should be called after creating the character controller and before updating the character controller.
     pub fn add_to_physics_world(
         &mut self,
         rigid_body_set: &mut RigidBodySet,
@@ -199,10 +204,10 @@ impl Player {
         );
     }
 
-    /// Update the player based on what it knows about its internal properties
+    /// Update the character controller based on what it knows about its internal properties
     /// and the properties of its rigid body. This should be called after the [Input](perigee::input::Input)
     /// and [GameSettings](perigee::settings::GameSettings) are updated but before the [PhysicsWorld](perigee::physics::PhysicsWorld)
-    /// steps and the `Player`'s events are extracted this frame.
+    /// steps and the `CharacterController`'s events are extracted this frame.
     pub fn update(
         &mut self,
         delta_seconds: f32,
@@ -297,7 +302,7 @@ impl Player {
                 self.nullify_vertical_movement(&mut physics.rigid_body_set);
                 // We can't be grounded and wallrunning at the same time
                 self.wallrunning_state.transition_to(WallRunning::None);
-                self.event_channel.send(PlayerEvent::Landed);
+                self.event_channel.send(CharacterControllerEvent::Landed);
                 self.coyote_timer.reset();
             } else {
                 // We've just taken off
@@ -307,12 +312,14 @@ impl Player {
             // We're entered a new wallrun
             if self.wallrunning_state != WallRunning::None && !self.is_grounded {
                 self.start_wallrunning(&mut physics.rigid_body_set);
-                self.event_channel.send(PlayerEvent::StartedWallRunning);
+                self.event_channel
+                    .send(CharacterControllerEvent::StartedWallRunning);
                 self.coyote_timer.reset();
             } else {
                 // We've exited a wallrun
                 self.stop_wallrunning(&mut physics.rigid_body_set);
-                self.event_channel.send(PlayerEvent::StoppedWallRunning);
+                self.event_channel
+                    .send(CharacterControllerEvent::StoppedWallRunning);
             }
         }
         self.tilt_head(delta_seconds);
@@ -320,12 +327,14 @@ impl Player {
         if previous_tick_sliding_state != *self.sliding_state.current_state() {
             if self.sliding_state.current_state() != &SlidingState::None {
                 self.start_sliding(&mut physics.rigid_body_set);
-                self.event_channel.send(PlayerEvent::StartedSliding);
+                self.event_channel
+                    .send(CharacterControllerEvent::StartedSliding);
             } else {
                 self.stop_sliding(&mut physics.rigid_body_set);
-                self.event_channel.send(PlayerEvent::StoppedSliding);
+                self.event_channel
+                    .send(CharacterControllerEvent::StoppedSliding);
                 if self.is_grounded && self.crouch_state.current_state() == &CrouchState::Crouched {
-                    self.event_channel.send(PlayerEvent::Crouched);
+                    self.event_channel.send(CharacterControllerEvent::Crouched);
                 }
             }
         }
@@ -390,7 +399,7 @@ impl Player {
                     < self.config.sliding_speed_factor()
                         * self.config.max_standing_move_speed_continuous()
                 {
-                    self.event_channel.send(PlayerEvent::Crouched);
+                    self.event_channel.send(CharacterControllerEvent::Crouched);
                 }
             }
             (false, &CrouchState::Crouched) => {
@@ -407,7 +416,8 @@ impl Player {
                         &mut physics.collider_set,
                         &mut physics.island_manager,
                     );
-                    self.event_channel.send(PlayerEvent::StoodUpright);
+                    self.event_channel
+                        .send(CharacterControllerEvent::StoodUpright);
                 }
             }
             _ => {}
@@ -506,7 +516,7 @@ impl Player {
         }
     }
 
-    /// Rotate the player's rigid body about the Y axis (left / right) based on user input.
+    /// Rotate the character controller's rigid body about the Y axis (left / right) based on user input.
     pub fn rotate_body(
         &self,
         y_axis_rotation: f32,
@@ -553,7 +563,7 @@ impl Player {
         }
     }
 
-    /// Rotate the player head about the X axis (up / down) based on user input, not exceeding the min or max look angles.
+    /// Rotate the character controller head about the X axis (up / down) based on user input, not exceeding the min or max look angles.
     pub fn rotate_head(&mut self, x_axis_rotation: f32, min_look_angle: f32, max_look_angle: f32) {
         let (roll, pitch, yaw) = self.head_x_rotation.euler_angles();
 
@@ -638,11 +648,11 @@ impl Player {
         }
     }
 
-    fn set_body_handle(&mut self, body_handle: RigidBodyHandle) {
+    pub fn set_body_handle(&mut self, body_handle: RigidBodyHandle) {
         self.rigid_body_handle = body_handle;
     }
 
-    fn set_collider_handle(&mut self, collider_handle: ColliderHandle) {
+    pub fn set_collider_handle(&mut self, collider_handle: ColliderHandle) {
         self.collider_handle = collider_handle;
     }
 
@@ -654,18 +664,18 @@ impl Player {
         self.collider_handle
     }
 
-    fn head_rotation(&self) -> UnitQuaternion<f32> {
+    pub fn head_rotation(&self) -> UnitQuaternion<f32> {
         self.head_x_rotation * self.head_z_rotation
     }
 
-    fn head_standing_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn head_standing_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
         Isometry::from_parts(
             self.config.standing_head_translation_offset().into(),
             self.head_rotation(),
         )
     }
 
-    fn head_crouched_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn head_crouched_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
         Isometry::from_parts(
             self.config.crouched_head_translation_offset().into(),
             self.head_rotation(),
@@ -676,7 +686,7 @@ impl Player {
         self.head_isometry
     }
 
-    /// Get the isometry (position and orientation) of the player's rigid body.
+    /// Get the isometry (position and orientation) of the character controller's rigid body.
     pub fn body_isometry(&self) -> &Isometry<f32, UnitQuaternion<f32>, 3> {
         &self.body_isometry
     }
@@ -700,8 +710,8 @@ impl Player {
             // The max velocity transformed by the isometry (position & orientation)
             // of the camera's boom.
             let transformed_max_velocity = pivot_isometry.transform_vector(&max_velocity);
-            // The player isometry-transformed max velocity rotated to point in the
-            // direction of the slope the player is currently on
+            // The character controller isometry-transformed max velocity rotated to point in the
+            // direction of the slope the character controller is currently on
             let planar_transformed_max_velocity =
                 project_on_plane(&transformed_max_velocity, &self.ground_normal);
             // Calculate the velocity that the body will have *after*
@@ -721,8 +731,8 @@ impl Player {
         }
     }
 
-    /// Move the player rigid body laterally (in the X-Z direction) based on user input.
-    pub fn move_body_continuous(
+    /// Move the character controller rigid body laterally (in the X-Z direction) based on user input.
+    fn move_body_continuous(
         &mut self,
         delta_seconds: f32,
         left_right_magnitude: f32,
@@ -754,7 +764,7 @@ impl Player {
         );
     }
 
-    pub fn move_body_discrete(
+    fn move_body_discrete(
         &mut self,
         delta_seconds: f32,
         left_right_magnitude: f32,
@@ -824,13 +834,13 @@ impl Player {
             },
         };
         self.jump_body(jump_acceleration, rigid_body_set);
-        self.event_channel.send(PlayerEvent::Jump);
+        self.event_channel.send(CharacterControllerEvent::Jump);
         self.jump_cooldown_timer.reset();
     }
 
-    /// Make the player's rigid body jump. If the player is wallrunning, it will jump on the
+    /// Make the character controller's rigid body jump. If the character controller is wallrunning, it will jump on the
     /// opposite direction of the wall it's running on. If not wallrunning, it will jump straight up.
-    pub fn jump_body(&mut self, jump_acceleration: f32, rigid_body_set: &mut RigidBodySet) {
+    fn jump_body(&mut self, jump_acceleration: f32, rigid_body_set: &mut RigidBodySet) {
         let body_handle = self.body_handle();
         let body_isometry = self.body_isometry();
         // We always wanna jump up and forward
@@ -979,7 +989,7 @@ impl Player {
         }
     }
 
-    /// Determine whether the player has a collider just below it, functioning
+    /// Determine whether the character controller has a collider just below it, functioning
     /// as ground. Also calculate the normal of this surface.
     fn determine_grounded_states(
         &mut self,
@@ -1012,10 +1022,10 @@ impl Player {
         self.is_grounded = false;
     }
 
-    /// Determine whether the player has a collider on the right or left side by firing a ray in those directions.
+    /// Determine whether the character controller has a collider on the right or left side by firing a ray in those directions.
     ///
-    /// Note: This will update the state *regardless* of whether the player is grounded, so you must ensure by
-    /// yourself that the player isn't already grounded when responding to this state.
+    /// Note: This will update the state *regardless* of whether the character controller is grounded, so you must ensure by
+    /// yourself that the character controller isn't already grounded when responding to this state.
     fn determine_wallrunning_state(
         &mut self,
         rigid_body_set: &mut RigidBodySet,
@@ -1115,8 +1125,8 @@ impl Player {
         }
     }
 
-    /// Tilt the head of the player about the Z axis based on the current wall running state.
-    /// If the player is on a wall on the right, tilt the head left. If the wall is on the left, tilt
+    /// Tilt the head of the character controller about the Z axis based on the current wall running state.
+    /// If the character controller is on a wall on the right, tilt the head left. If the wall is on the left, tilt
     /// the head right. If not wall running, don't tilt the head.
     fn tilt_head(&mut self, delta_seconds: f32) {
         let z_axis = Unit::new_normalize(BACK_VECTOR);
@@ -1137,10 +1147,10 @@ impl Player {
         };
         self.head_z_rotation = self
             .head_z_rotation
-            .try_slerp(&target_head_z_rotation, framerate_independent_interp_t(tilt_speed, delta_seconds), 0.0).expect("Could not tilt player head as found and desired quaternions were 180 degrees apart");
+            .try_slerp(&target_head_z_rotation, framerate_independent_interp_t(tilt_speed, delta_seconds), 0.0).expect("Could not tilt character_controller head as found and desired quaternions were 180 degrees apart");
     }
 
-    /// Determine whether the player can stand up by casting a ray straight above the head.
+    /// Determine whether the character controller can stand up by casting a ray straight above the head.
     fn can_stand_up(
         &self,
         rigid_body_set: &mut RigidBodySet,
@@ -1202,7 +1212,7 @@ impl Player {
         true
     }
 
-    /// Change the size of the player collider.
+    /// Change the size of the character controller collider.
     fn change_crouch_state(
         &mut self,
         new_capsule_half_height: f32,

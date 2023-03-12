@@ -25,17 +25,17 @@ pub enum MovementMode {
     Continuous,
 }
 
-/// Configuration parameters for the [FirstPersonPlayer](crate::shared::player::FirstPersonPlayer).
+/// Configuration parameters for the [FirstPersonCharacterController](crate::shared::character_controller::FirstPersonCharacterController).
 /// These should not be editable at runtime.
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, CopyGetters)]
-pub struct PlayerConfig {
-    /// The mass of the player's body (via its collider).
+pub struct CharacterControllerConfig {
+    /// The mass of the character controller's body (via its collider).
     #[getset(get_copy = "pub")]
     mass: f32,
-    /// How high the player can look (max X axis rotation of the head or viewpoint).
+    /// How high the character controller can look (max X axis rotation of the head or viewpoint).
     #[getset(get_copy = "pub")]
     max_look_up_angle: f32,
-    /// How low the player can look (min X axis rotation of the head or viewpoint).
+    /// How low the character controller can look (min X axis rotation of the head or viewpoint).
     #[getset(get_copy = "pub")]
     min_look_up_angle: f32,
     /// The per-frame lerp factor (alpha) used when entering a wallrunning head tilt.
@@ -44,68 +44,68 @@ pub struct PlayerConfig {
     /// The per-frame lerp factor (alpha) used when exiting a wallrunning head tilt.
     #[getset(get_copy = "pub")]
     exit_head_tilt_factor: f32,
-    /// How fast the player must be moving to be considered
+    /// How fast the character controller must be moving to be considered
     /// moving.
     #[getset(get_copy = "pub")]
     nonstationary_speed_threshold: f32,
-    /// The max speed to which player's own forces can move its rigid body when standing in the continuous movement mode.
+    /// The max speed to which character controller's own forces can move its rigid body when standing in the continuous movement mode.
     #[getset(get_copy = "pub")]
     max_standing_move_speed_continuous: f32,
-    /// The max speed to which player's own forces can move its rigid body when crouched in the continuous movement mode.
+    /// The max speed to which character controller's own forces can move its rigid body when crouched in the continuous movement mode.
     #[getset(get_copy = "pub")]
     max_crouched_move_speed_continuous: f32,
-    /// The max acceleration force the player can apply to its rigid body when standing in the continuous movement mode.
+    /// The max acceleration force the character controller can apply to its rigid body when standing in the continuous movement mode.
     #[getset(get_copy = "pub")]
     max_standing_move_acceleration_continuous: f32,
-    /// The max acceleration force the player can apply to its rigid body when crouched in the continuous movement mode.
+    /// The max acceleration force the character controller can apply to its rigid body when crouched in the continuous movement mode.
     #[getset(get_copy = "pub")]
     max_crouched_move_acceleration_continuous: f32,
-    /// The walk speed of the player when standing in the discrete movement mode.
+    /// The walk speed of the character controller when standing in the discrete movement mode.
     #[getset(get_copy = "pub")]
     standing_walk_speed_discrete: f32,
-    /// The run speed of the player when standing in the discrete movement mode.
+    /// The run speed of the character controller when standing in the discrete movement mode.
     #[getset(get_copy = "pub")]
     standing_run_speed_discrete: f32,
-    /// The sprint speed of the player when standing in the discrete movement mode.
+    /// The sprint speed of the character controller when standing in the discrete movement mode.
     #[getset(get_copy = "pub")]
     standing_sprint_speed_discrete: f32,
-    /// The creep speed of the player when crouched in the discrete movement mode.
+    /// The creep speed of the character controller when crouched in the discrete movement mode.
     #[getset(get_copy = "pub")]
     crouched_creep_speed_discrete: f32,
-    /// The walk acceleration force the player applies to its rigid body when standing in the discrete movement mode.
+    /// The walk acceleration force the character controller applies to its rigid body when standing in the discrete movement mode.
     #[getset(get_copy = "pub")]
     standing_walk_acceleration_discrete: f32,
-    /// The run acceleration force the player applies to its rigid body when standing in the discrete movement mode.
+    /// The run acceleration force the character controller applies to its rigid body when standing in the discrete movement mode.
     #[getset(get_copy = "pub")]
     standing_run_acceleration_discrete: f32,
-    /// The sprint acceleration force the player applies to its rigid body when standing in the discrete movement mode.
+    /// The sprint acceleration force the character controller applies to its rigid body when standing in the discrete movement mode.
     #[getset(get_copy = "pub")]
     standing_sprint_acceleration_discrete: f32,
-    /// The creep acceleration force the player applies to its rigid body when crouched in the discrete movement mode.
+    /// The creep acceleration force the character controller applies to its rigid body when crouched in the discrete movement mode.
     #[getset(get_copy = "pub")]
     crouched_creep_acceleration_discrete: f32,
-    /// The threshold (between 0 and 1) above which a player's movement vector's magnitude must be greater than to trigger a sprint.
+    /// The threshold (between 0 and 1) above which a character controller's movement vector's magnitude must be greater than to trigger a sprint.
     #[getset(get_copy = "pub")]
     standing_sprint_input_threshold: f32,
-    /// The max angle between the forward vector and the movement vector under which the player can sprint in discrete movement mode.
+    /// The max angle between the forward vector and the movement vector under which the character controller can sprint in discrete movement mode.
     #[getset(get_copy = "pub")]
     max_sprint_forward_angle_threshold_discrete: f32,
-    /// How much of the discrete speed the player must be moving at to be considered moving at the speed
+    /// How much of the discrete speed the character controller must be moving at to be considered moving at the speed
     #[getset(get_copy = "pub")]
     discrete_movement_factor: f32,
-    /// The threshold (between 0 and 1) above which a player's movement vector's magnitude must be greater than to trigger a run.
+    /// The threshold (between 0 and 1) above which a character controller's movement vector's magnitude must be greater than to trigger a run.
     #[getset(get_copy = "pub")]
     standing_run_input_threshold: f32,
-    /// The total height of the player's capsule when standing.
+    /// The total height of the character controller's capsule when standing.
     #[getset(get_copy = "pub")]
     capsule_standing_total_height: f32,
-    /// The radius of the cylinder part of the player and each half-sphere of the capsule when standing.
+    /// The radius of the cylinder part of the character controller and each half-sphere of the capsule when standing.
     #[getset(get_copy = "pub")]
     capsule_standing_radius: f32,
-    /// The total height of the player's capsule when crouched.
+    /// The total height of the character controller's capsule when crouched.
     #[getset(get_copy = "pub")]
     capsule_crouched_total_height: f32,
-    /// The radius of the cylinder part of the player and each half-sphere of the capsule when standing.
+    /// The radius of the cylinder part of the character controller and each half-sphere of the capsule when standing.
     #[getset(get_copy = "pub")]
     capsule_crouched_radius: f32,
     /// The translational offset of the head (which is often tracked by the camera) from the center of the
@@ -116,26 +116,26 @@ pub struct PlayerConfig {
     /// capsule when crouched.
     #[getset(get_copy = "pub")]
     crouched_head_translation_offset: [f32; 3],
-    /// How quickly the player's head lerps between its standing
+    /// How quickly the character controller's head lerps between its standing
     /// translational offset and crouched translational offset.
     #[getset(get_copy = "pub")]
     head_crouch_lerp_factor: f32,
     /// How many seconds after no longer being grounded or wallrunning
-    /// the player can still jump.
+    /// the character controller can still jump.
     #[getset(get_copy = "pub")]
     max_jump_coyote_duration: f32,
-    /// How much force is used to make the player jump when standing.
+    /// How much force is used to make the character controller jump when standing.
     #[getset(get_copy = "pub")]
     jump_standing_acceleration: f32,
-    /// How much force is used to make the player jump when crouched.
+    /// How much force is used to make the character controller jump when crouched.
     #[getset(get_copy = "pub")]
     jump_crouched_acceleration: f32,
     /// How many seconds must pass before another jump is possible
-    /// while the player is standing up.
+    /// while the character controller is standing up.
     #[getset(get_copy = "pub")]
     min_jump_standing_cooldown_duration: f32,
     /// How many seconds must pass before another jump is possible.
-    /// while the player is crouching.
+    /// while the character controller is crouching.
     #[getset(get_copy = "pub")]
     min_jump_crouched_cooldown_duration: f32,
     /// The scale factor of jump force (up + forward) when wallrunning.
@@ -151,23 +151,23 @@ pub struct PlayerConfig {
     /// The scale factor of jump force in the direction of the wall normal when wallrunning.
     #[getset(get_copy = "pub")]
     jump_wallrunning_normal_scale: f32,
-    /// How far from the player the rays used to determine whether it's
+    /// How far from the character controller the rays used to determine whether it's
     /// wallrunning go.
     #[getset(get_copy = "pub")]
     wallrunning_ray_length: f32,
-    /// How far below the player the ray used to determine whether it's
+    /// How far below the character controller the ray used to determine whether it's
     /// grounded goes.
     #[getset(get_copy = "pub")]
     ground_ray_length: f32,
-    /// How far straight ahead the player must be moving next to a wall
+    /// How far straight ahead the character controller must be moving next to a wall
     /// to be considered wallrunning. Values closer to 1 mean more straightforwardness.
     #[getset(get_copy = "pub")]
     max_wallrunning_forward_angle: f32,
-    /// The vertical acceleration applied to the player's
+    /// The vertical acceleration applied to the character controller's
     /// body once wallrunning has started.
     #[getset(get_copy = "pub")]
     start_wallrunning_up_impulse: f32,
-    /// The gravity scale of the player's body once wallrunning
+    /// The gravity scale of the character controller's body once wallrunning
     /// has started.
     #[getset(get_copy = "pub")]
     start_wallrunning_gravity_scale: f32,
@@ -179,35 +179,35 @@ pub struct PlayerConfig {
     /// when moving at the max speed while wallrunning.
     #[getset(get_copy = "pub")]
     wallrunning_seconds_per_footstep: f32,
-    /// How much of the max standing speed must the player
+    /// How much of the max standing speed must the character controller
     /// be moving in order to slide when the crouch input is hit.
     #[getset(get_copy = "pub")]
     sliding_speed_factor: f32,
-    /// How straightforward the player must be moving
+    /// How straightforward the character controller must be moving
     /// before entering a slide.
     #[getset(get_copy = "pub")]
     sliding_max_forward_angle: f32,
     /// The acceleration vector applied to the rigid body
-    /// when the player starts sliding.
+    /// when the character controller starts sliding.
     #[getset(get_copy = "pub")]
     sliding_deceleration: [f32; 3],
     /// The increase in velocity applied to the rigid
-    /// body when the player starts sliding.
+    /// body when the character controller starts sliding.
     #[getset(get_copy = "pub")]
     sliding_velocity_increase: [f32; 3],
-    /// The minimum dot factor of the player's velocity with
-    /// a vector facing (0, -1, -1) needed for the player to be
+    /// The minimum dot factor of the character controller's velocity with
+    /// a vector facing (0, -1, -1) needed for the character controller to be
     /// considered traveling downhill.
     #[getset(get_copy = "pub")]
     endless_slide_downhill_max_down_angle: f32,
-    /// The maximum dot factor of the player's ground normal
+    /// The maximum dot factor of the character controller's ground normal
     /// with the up vector (0, 1, 0) to be considered traveling downhill.
     #[getset(get_copy = "pub")]
     endless_slide_ground_normal_max_up_angle: f32,
     /// The acceleration applied to endless / downhill slides.
     #[getset(get_copy = "pub")]
     endless_sliding_acceleration: [f32; 3],
-    /// The max capacity of the event channel used by the player structure.
+    /// The max capacity of the event channel used by the character controller structure.
     #[getset(get_copy = "pub")]
     event_queue_capacity: usize,
     /// The length of the default boom arm.
@@ -231,11 +231,11 @@ pub struct PlayerConfig {
     /// The yaw angle (about Y axis) of the aiming boom arm in degrees.
     #[getset(get_copy = "pub")]
     aim_boom_arm_yaw_angle: f32,
-    /// The lerp factor of player body isometry to the boom isometry
+    /// The lerp factor of character controller body isometry to the boom isometry
     /// while in third person combat mode.
     #[getset(get_copy = "pub")]
     tpcombat_boom_rotation_lerp_factor: f32,
-    /// The lerp factor for the player body to rotate in the player's movement direction.
+    /// The lerp factor for the character controller body to rotate in the character controller's movement direction.
     #[getset(get_copy = "pub")]
     rotate_body_to_movement_dir_lerp_factor: f32,
     #[getset(get_copy = "pub")]
@@ -244,7 +244,7 @@ pub struct PlayerConfig {
     movement_mode: MovementMode,
 }
 
-impl Default for PlayerConfig {
+impl Default for CharacterControllerConfig {
     fn default() -> Self {
         let capsule_total_height = 1.83;
         let capsule_radius = 0.4;
@@ -324,13 +324,13 @@ impl Default for PlayerConfig {
     }
 }
 
-impl PlayerConfig {
-    /// The height of the cylinder part of the player's capsule when standing.
+impl CharacterControllerConfig {
+    /// The height of the cylinder part of the character controller's capsule when standing.
     pub fn capsule_standing_half_height(&self) -> f32 {
         self.capsule_standing_total_height / 2.0 - self.capsule_standing_radius
     }
 
-    /// The height of the cylinder part of the player's capsule when crouched.
+    /// The height of the cylinder part of the character controller's capsule when crouched.
     pub fn capsule_crouched_half_height(&self) -> f32 {
         self.capsule_crouched_total_height / 2.0 - self.capsule_crouched_radius
     }
