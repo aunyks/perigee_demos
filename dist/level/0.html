@@ -600,13 +600,23 @@
 
             const deltaSeconds = deltaT / 1000
             sim.step(deltaSeconds)
-            const [camGlobalRotation, camGlobalTranslation] = sim.cameraGlobalIsometry()
-            cameraRig.position.fromArray(camGlobalTranslation)
-            cameraRig.quaternion.fromArray(camGlobalRotation)
 
             for(const mixer of sceneMixers.values()) {
               mixer.update(deltaSeconds)
             }
+
+            sceneGltf.scene.traverse((obj) => {
+              if(obj.isMesh && !obj.userData.simSettings.physics.isAnonymous) {
+                const propName = obj.userData.name
+                const [propRot, propTrans] = sim.propIsometry(propName)
+                obj.position.fromArray(propTrans)
+                obj.quaternion.fromArray(propRot)
+              }
+            })
+
+            const [camGlobalRotation, camGlobalTranslation] = sim.cameraGlobalIsometry()
+            cameraRig.position.fromArray(camGlobalTranslation)
+            cameraRig.quaternion.fromArray(camGlobalRotation)
 
             const [playerRotation, playerTranslation] = sim.playerBodyIsometry()
             playerMesh.position.fromArray(playerTranslation)
@@ -617,15 +627,6 @@
             const [cabinRotation, cabinTranslation] = sim.carCabinIsometry()
             cabinMesh.position.fromArray(cabinTranslation)
             cabinMesh.quaternion.fromArray(cabinRotation)
-
-            sceneGltf.scene.traverse((obj) => {
-              if(obj.isMesh && !obj.userData.simSettings.physics.isAnonymous) {
-                const propName = obj.userData.name
-                const [propRot, propTrans] = sim.propIsometry(propName)
-                obj.position.fromArray(propTrans)
-                obj.quaternion.fromArray(propRot)
-              }
-            })
 
             // Make sure the background environment follows the camera. We don't have to worry
             // about it occluding anything because every object in it has a low render order 
