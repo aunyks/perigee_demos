@@ -17,9 +17,10 @@ level_0 = []
 
 [dependencies]
 # https://github.com/aunyks/perigee
-perigee = { version = "0.2.5" }
+perigee = { version = "0.3.0" }
 
 # https://github.com/serde-rs/serde
 serde = { version = "1.0.97", features = ["derive", "rc"] }
 
+# https://github.com/jbaublitz/getset
 getset = { version = "0.1.2" }

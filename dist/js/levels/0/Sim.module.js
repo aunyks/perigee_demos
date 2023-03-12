@@ -14,17 +14,20 @@ class Sim extends WasmUtils {
       on_level_event: (type) => {
         console.log('UNHANDLED LEVEL EVENT EMITTED: ', type)
       },
-      play_2d_audio_hook: (audioNamePtr) => {
+      play_audio_hook: (sceneObjPtr, audioNamePtr, playbackRate) => {
+        const sceneObj = this.getCString(wasmMemory, sceneObjPtr)
         const audioName = this.getCString(wasmMemory, audioNamePtr)
-        gameEventEmitter.emit('PLAY_2D_AUDIO', [audioName])
+        gameEventEmitter.emit('PLAY_AUDIO', [sceneObj, audioName, playbackRate])
       },
-      stop_2d_audio_hook: (audioNamePtr) => {
+      stop_audio_hook: (sceneObjPtr, audioNamePtr) => {
+        const sceneObj = this.getCString(wasmMemory, sceneObjPtr)
         const audioName = this.getCString(wasmMemory, audioNamePtr)
-        gameEventEmitter.emit('STOP_2D_AUDIO', [audioName])
+        gameEventEmitter.emit('STOP_AUDIO', [sceneObj, audioName])
       },
-      loop_2d_audio_hook: (audioNamePtr) => {
+      loop_audio_hook: (sceneObjPtr, audioNamePtr, playbackRate) => {
+        const sceneObj = this.getCString(wasmMemory, sceneObjPtr)
         const audioName = this.getCString(wasmMemory, audioNamePtr)
-        gameEventEmitter.emit('LOOP_2D_AUDIO', [audioName])
+        gameEventEmitter.emit('LOOP_AUDIO', [sceneObj, audioName, playbackRate])
       },
       loop_animation_hook: (sceneObjNamePtr, animNamePtr, timeScale) => {
         const sceneObjName = this.getCString(wasmMemory, sceneObjNamePtr)

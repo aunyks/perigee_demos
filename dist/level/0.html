@@ -467,16 +467,16 @@
         let isWallRunning = false
 
         const audioTracks = new Map([
-          ['PLAYER_JUMP', { track: (new Audio(audioListener)).setBuffer(jumpAudioBuffer), detune: [2, 1] }],
-          ['PLAYER_SLIDE', { track: (new Audio(audioListener)).setBuffer(slideAudioBuffer), detune: [4, 2] }],
-          ['PLAYER_STEP', { track: (new Audio(audioListener)).setBuffer(footstepAudioBuffer), detune: [8, 4] }],
+          ['JUMP', { track: (new Audio(audioListener)).setBuffer(jumpAudioBuffer), detune: [2, 1] }],
+          ['SLIDE', { track: (new Audio(audioListener)).setBuffer(slideAudioBuffer), detune: [4, 2] }],
+          ['STEP', { track: (new Audio(audioListener)).setBuffer(footstepAudioBuffer), detune: [8, 4] }],
         ])
         const sceneMixers = new Map([
           ['PLAYER', playerMixer],
           ['CAMERA', cameraMixer]
         ])
 
-        sim.events.on('PLAY_2D_AUDIO', (audioName) => {
+        sim.events.on('PLAY_AUDIO', (sceneObj, audioName, playbackRate) => {
           const audio = audioTracks.get(audioName)
           if(audio) {
             const audioTrack = audio.track
@@ -490,7 +490,7 @@
           }
         })
 
-        sim.events.on('LOOP_2D_AUDIO', (audioName) => {
+        sim.events.on('LOOP_AUDIO', (sceneObj, audioName, playbackRate) => {
           const audio = audioTracks.get(audioName)
           if(audio) {
             const audioTrack = audio.track
@@ -504,7 +504,7 @@
           }
         })
 
-        sim.events.on('STOP_2D_AUDIO', (audioName) => {
+        sim.events.on('STOP_AUDIO', (sceneObj, audioName) => {
           if(audioName === 'PLAYER_WALLRUN') {
             isWallRunning = false
           }

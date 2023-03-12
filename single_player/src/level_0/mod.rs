@@ -257,12 +257,24 @@ impl<'a> Sim<'a> {
         // Ease the pressure of this channel
         while let Ok(player_event) = self.player.get_event() {
             match player_event {
-                CharacterControllerEvent::Stepped => play_2d_audio("PLAYER_STEP"),
-                CharacterControllerEvent::Jump => play_2d_audio("PLAYER_JUMP"),
-                CharacterControllerEvent::StartedWallRunning => loop_2d_audio("PLAYER_WALLRUN"),
-                CharacterControllerEvent::StoppedWallRunning => stop_2d_audio("PLAYER_WALLRUN"),
-                CharacterControllerEvent::StartedSliding => loop_2d_audio("PLAYER_SLIDE"),
-                CharacterControllerEvent::StoppedSliding => stop_2d_audio("PLAYER_SLIDE"),
+                CharacterControllerEvent::Stepped => {
+                    play_audio(self.player.scene_object_name(), "STEP", 1.0)
+                }
+                CharacterControllerEvent::Jump => {
+                    play_audio(self.player.scene_object_name(), "JUMP", 1.0)
+                }
+                CharacterControllerEvent::StartedWallRunning => {
+                    loop_audio(self.player.scene_object_name(), "WALLRUN", 1.0)
+                }
+                CharacterControllerEvent::StoppedWallRunning => {
+                    stop_audio(self.player.scene_object_name(), "WALLRUN")
+                }
+                CharacterControllerEvent::StartedSliding => {
+                    loop_audio(self.player.scene_object_name(), "SLIDE", 1.0)
+                }
+                CharacterControllerEvent::StoppedSliding => {
+                    stop_audio(self.player.scene_object_name(), "SLIDE")
+                }
                 _ => {}
             };
         }
