@@ -125,10 +125,8 @@ impl CharacterController {
         self.scene_object_name = name;
     }
 
-    pub fn scene_object_name(&self) -> String {
-        // TODO: Hopefully the compiler knows not
-        // to actually clone this and cause leaks
-        self.scene_object_name.clone()
+    pub fn scene_object_name(&self) -> &String {
+        &self.scene_object_name
     }
 
     pub fn get_event(&self) -> Result<CharacterControllerEvent, TryRecvError> {
@@ -200,7 +198,7 @@ impl CharacterController {
 
         self.animation_manager.loop_animation(
             &self.movement_state.current_state().to_string(),
-            Some(&self.scene_object_name()),
+            Some(&self.scene_object_name().clone()),
         );
     }
 
@@ -284,11 +282,11 @@ impl CharacterController {
         if *self.movement_state.current_state() != previous_tick_movement_state {
             self.animation_manager.stop_animation(
                 &previous_tick_movement_state.to_string(),
-                Some(&self.scene_object_name()),
+                Some(&self.scene_object_name().clone()),
             );
             self.animation_manager.loop_animation(
                 &self.movement_state.current_state().to_string(),
-                Some(&self.scene_object_name()),
+                Some(&self.scene_object_name().clone()),
             );
         }
 

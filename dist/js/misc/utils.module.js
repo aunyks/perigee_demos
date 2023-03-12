@@ -23,4 +23,6 @@ function bindAssistiveDeviceAnnouncer(announcerElem) {
   }
 }
 
-export { randomIntFromZero, bindAssistiveDeviceAnnouncer }
+function noop() {}
+
+export { randomIntFromZero, bindAssistiveDeviceAnnouncer, noop }

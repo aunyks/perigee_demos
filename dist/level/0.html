@@ -270,7 +270,7 @@
       import VirtualJumpBtnInput from '/js/input/virtual-jumpbtn.module.js'
       import VirtualCrouchBtnInput from '/js/input/virtual-crouchbtn.module.js'
       import TouchInput from '/js/input/touch.module.js'
-      import GamePadInput from '/js/input/gamepad.module.js'
+      import GamepadInput from '/js/input/gamepad.module.js'
       import { GameInput, processInputs, collectInputsIntoSimulation } from '/js/input/game-input.module.js'
       import { Sim } from '/js/levels/0/Sim.module.js'
       import {
@@ -458,107 +458,70 @@
         cameraRig.add(animatedCameraGltf.scene)
         mainScene.add(cameraRig)
         const cameraMixer = new AnimationMixer(animatedCameraGltf.scene)
+
         const [cameraIdleAnimation, cameraRunningAnimation] = animatedCameraGltf.animations
 
         const audioListener = new AudioListener()
         animatedCamera.add(audioListener)
 
-        const footstepAudio = (new Audio(audioListener)).setBuffer(footstepAudioBuffer)
-        const jumpAudio = (new Audio(audioListener)).setBuffer(jumpAudioBuffer)
-        const slideAudio = (new Audio(audioListener)).setBuffer(slideAudioBuffer)
-
         let isWallRunning = false
 
+        const audioTracks = new Map([
+          ['PLAYER_JUMP', { track: (new Audio(audioListener)).setBuffer(jumpAudioBuffer), detune: [2, 1] }],
+          ['PLAYER_SLIDE', { track: (new Audio(audioListener)).setBuffer(slideAudioBuffer), detune: [4, 2] }],
+          ['PLAYER_STEP', { track: (new Audio(audioListener)).setBuffer(footstepAudioBuffer), detune: [8, 4] }],
+        ])
+        const sceneMixers = new Map([
+          ['PLAYER', playerMixer],
+          ['CAMERA', cameraMixer]
+        ])
+
         sim.events.on('PLAY_2D_AUDIO', (audioName) => {
-          switch(audioName) {
-            case 'PLAYER_STEP': {
-              if(footstepAudio.isPlaying) {
-                footstepAudio.stop()
-              }
-              footstepAudio.detune = 100 * (randomIntFromZero(8) - 4)
-              footstepAudio
-                .setVolume(settings.interface.masterVolume * (isWallRunning ? 0.6 : 0.75))
-                .play()
-              // .onEnded = () => { console.log('step taken') }
-              break
+          const audio = audioTracks.get(audioName)
+          if(audio) {
+            const audioTrack = audio.track
+            if(audioTrack.isPlaying) {
+              audioTrack.stop()
             }
-            case 'PLAYER_JUMP': {
-              if(jumpAudio.isPlaying) {
-                jumpAudio.stop()
-              }
-              jumpAudio.detune = 100 * (randomIntFromZero(2) - 1)
-              jumpAudio
-                .setVolume(settings.interface.masterVolume * 0.8)
-                .play()
-              break
+            if(audio.detune) {
+              audioTrack.detune = 100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
             }
-            default: { }
+            audioTrack.play()
           }
         })
 
         sim.events.on('LOOP_2D_AUDIO', (audioName) => {
-          switch(audioName) {
-            case 'PLAYER_SLIDE': {
-              if(slideAudio.isPlaying) {
-                slideAudio.stop()
-              }
-              slideAudio.detune = 100 * (randomIntFromZero(4) - 2)
-              slideAudio
-                .setVolume(settings.interface.masterVolume * 0.75)
-                .setLoop(true)
-                .play()
-              break
+          const audio = audioTracks.get(audioName)
+          if(audio) {
+            const audioTrack = audio.track
+            if(audioTrack.isPlaying) {
+              audioTrack.stop()
             }
-            case 'PLAYER_WALLRUN': {
-              isWallRunning = true
-              if(slideAudio.isPlaying) {
-                slideAudio.stop()
-              }
-              slideAudio.detune = 100 * (randomIntFromZero(4) - 2)
-              slideAudio
-                .setVolume(settings.interface.masterVolume * 0.75)
-                .setLoop(true)
-                .play()
-              break
+            if(audio.detune) {
+              audioTrack.detune = 100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
             }
-            default: { }
+            audioTrack.setLoop(true).play()
           }
         })
 
         sim.events.on('STOP_2D_AUDIO', (audioName) => {
-          switch(audioName) {
-            case 'PLAYER_WALLRUN': {
-              isWallRunning = false
-              if(slideAudio.isPlaying) {
-                slideAudio.stop()
-              }
-              break
+          if(audioName === 'PLAYER_WALLRUN') {
+            isWallRunning = false
+          }
+          const audio = audioTracks.get(audioName)
+          if(audio) {
+            const audioTrack = audio.track
+            if(audioTrack.isPlaying) {
+              audioTrack.stop()
             }
-            case 'PLAYER_SLIDE': {
-              if(slideAudio.isPlaying) {
-                slideAudio.stop()
-              }
-              break
-            }
-            default: { }
           }
         })
 
         const ANIM_FADE_DURATION = 0.15
 
         sim.events.on('LOOP_ANIMATION', (sceneObj, animName, timeScale) => {
-          let mixer = null
-          switch(sceneObj) {
-            case 'PLAYER': {
-              mixer = playerMixer
-              break;
-            }
-            default: {
-              // do nothing
-            }
-          }
-
-          if(mixer !== null) {
+          const mixer = sceneMixers.get(sceneObj)
+          if(mixer) {
             const anim = mixer.clipAction(AnimationClip.findByName(playerModelGltf.animations, animName).optimize())
             if(anim !== null) {
               anim.timeScale = timeScale
@@ -568,19 +531,9 @@
         })
 
         sim.events.on('STOP_ANIMATION', (sceneObj, animName) => {
-          let mixer = null
-          switch(sceneObj) {
-            case 'PLAYER': {
-              mixer = playerMixer
-              break;
-            }
-            default: {
-              // do nothing
-            }
-          }
-
-          if(mixer !== null) {
-            const anim = mixer.clipAction(AnimationClip.findByName(playerModelGltf.animations, animName))
+          const mixer = sceneMixers.get(sceneObj)
+          if(mixer) {
+            const anim = mixer.clipAction(AnimationClip.findByName(playerModelGltf.animations, animName).optimize())
             if(anim !== null) {
               anim.fadeOut(ANIM_FADE_DURATION)
             }
@@ -591,6 +544,19 @@
           adAnnounce(msg)
         })
 
+        const gamepadInput = new GamepadInput(0)
+        gamepadInput.onConnect(() => {
+          document.querySelectorAll('.hud.input').forEach(hudInputElement => {
+            hudInputElement.style.display = 'none'
+          })
+        })
+
+        gamepadInput.onDisconnect(() => {
+          document.querySelectorAll('.hud.input').forEach(hudInputElement => {
+            hudInputElement.style.display = 'block'
+          })
+        })
+
         // Higher importance inputs should be later in the list
         const inputs = [
           new PointerLockInput(document.getElementById('scene-container')),
@@ -599,7 +565,7 @@
           new TouchInput(sceneCanvas),
           new VirtualJumpBtnInput(document.getElementById('virtual-jump-button-container')),
           // new VirtualCrouchBtnInput(document.getElementById('virtual-crouch-button-container')),
-          new GamePadInput(0),
+          gamepadInput,
         ]
         const gameInput = new GameInput()
 
@@ -611,7 +577,6 @@
         let lastTimestamp = null
         let deltaT = 0
         let activeCamera = animatedCamera
-        let gamepadUsed = false
 
         const postProcessComposer = new EffectComposer(renderer)
         postProcessComposer.addPass(new RenderPass(mainScene, activeCamera))
@@ -623,19 +588,6 @@
           perfStatistics.begin()
           if(deltaT < 90 && deltaT !== 0) {
             const gamepadReady = inputs[inputs.length - 1].ready()
-            if(gamepadReady) {
-              document.querySelectorAll('.hud.input').forEach(hudInputElement => {
-                hudInputElement.style.display = 'none'
-              })
-              gamepadUsed = true
-            } else {
-              if(gamepadUsed && inputs[3].ready()) {
-                document.querySelectorAll('.hud.input').forEach(hudInputElement => {
-                  hudInputElement.style.display = 'block'
-                })
-              }
-            }
-
             const shouldPause = inputs[1].ready() && inputs[1].escapePressed()
               || gamepadReady && inputs[inputs.length - 1].startBtnPressed()
             if(shouldPause) {
@@ -651,9 +603,10 @@
             const [camGlobalRotation, camGlobalTranslation] = sim.cameraGlobalIsometry()
             cameraRig.position.fromArray(camGlobalTranslation)
             cameraRig.quaternion.fromArray(camGlobalRotation)
-            cameraMixer.update(deltaSeconds)
 
-            playerMixer.update(deltaSeconds)
+            for(const mixer of sceneMixers.values()) {
+              mixer.update(deltaSeconds)
+            }
 
             const [playerRotation, playerTranslation] = sim.playerBodyIsometry()
             playerMesh.position.fromArray(playerTranslation)

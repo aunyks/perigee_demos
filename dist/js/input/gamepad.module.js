@@ -1,8 +1,26 @@
 import Controller from './controller.module.js'
+import { noop } from '/js/misc/utils.module.js'
 
 class GamepadInput extends Controller {
   constructor(index) {
     super()
+    this._ready = false
+    this._onConnect = noop
+    this._onDisconnect = noop
+
+    window.addEventListener('gamepadconnected', (e) => {
+      if (e.gamepad.index === this.gamepadIndex) {
+        this._ready = true
+        this._onConnect(e)
+      }
+    })
+    window.addEventListener('gamepaddisconnected', (e) => {
+      if (e.gamepad.index === this.gamepadIndex) {
+        this._ready = true
+        this._onDisconnect(e)
+      }
+    })
+
     // Assume the index to be the first unless
     // specified otherwise
     if (index !== null && index !== undefined) {
@@ -13,13 +31,15 @@ class GamepadInput extends Controller {
   }
 
   ready() {
-    for (let i = 0; i < navigator.getGamepads().length; i++) {
-      const gamepad = navigator.getGamepads()[i]
-      const discoveredGamepadIndex = i
-      if (gamepad !== null && discoveredGamepadIndex === this.gamepadIndex)
-        return true
-    }
-    return false
+    return this._ready
+  }
+
+  onConnect(callback) {
+    this._onConnect = callback
+  }
+
+  onDisconnect(callback) {
+    this._onDisconnect = callback
   }
 
   // [WARNING]
@@ -65,7 +85,7 @@ class GamepadInput extends Controller {
     }
   }
 
-  buttonPressed(buttonIndex, singleShot = false) {
+  buttonPressed(buttonIndex) {
     return this.getPad().buttons[buttonIndex].pressed
   }
 
