@@ -440,8 +440,6 @@
         })
 
         mainScene.add(sceneGltf.scene)
-
-        const playerMixer = new AnimationMixer(playerModelGltf.scene)
         mainScene.add(playerModelGltf.scene)
 
         const cabinMesh = new Mesh(new BoxGeometry(1, 1, 2), new MeshBasicMaterial({ color: 0x0000ff }))
@@ -457,7 +455,6 @@
         const cameraRig = new Object3D()
         cameraRig.add(animatedCameraGltf.scene)
         mainScene.add(cameraRig)
-        const cameraMixer = new AnimationMixer(animatedCameraGltf.scene)
 
         const [cameraIdleAnimation, cameraRunningAnimation] = animatedCameraGltf.animations
 
@@ -472,8 +469,8 @@
           ['STEP', { track: (new Audio(audioListener)).setBuffer(footstepAudioBuffer), detune: [8, 4] }],
         ])
         const sceneMixers = new Map([
-          ['PLAYER', playerMixer],
-          ['CAMERA', cameraMixer]
+          ['PLAYER', { mixer: new AnimationMixer(playerModelGltf.scene), clips: playerModelGltf.animations }],
+          ['CAMERA', { mixer: new AnimationMixer(animatedCameraGltf.scene), clips: animatedCameraGltf.animations }]
         ])
 
         sim.events.on('PLAY_AUDIO', (sceneObj, audioName, playbackRate) => {
@@ -520,9 +517,9 @@
         const ANIM_FADE_DURATION = 0.15
 
         sim.events.on('LOOP_ANIMATION', (sceneObj, animName, timeScale) => {
-          const mixer = sceneMixers.get(sceneObj)
-          if(mixer) {
-            const anim = mixer.clipAction(AnimationClip.findByName(playerModelGltf.animations, animName).optimize())
+          const detailedMixer = sceneMixers.get(sceneObj)
+          if(detailedMixer) {
+            const anim = detailedMixer.mixer.clipAction(AnimationClip.findByName(detailedMixer.clips, animName).optimize())
             if(anim !== null) {
               anim.timeScale = timeScale
               anim.reset().fadeIn(ANIM_FADE_DURATION).play()
@@ -531,9 +528,9 @@
         })
 
         sim.events.on('STOP_ANIMATION', (sceneObj, animName) => {
-          const mixer = sceneMixers.get(sceneObj)
-          if(mixer) {
-            const anim = mixer.clipAction(AnimationClip.findByName(playerModelGltf.animations, animName).optimize())
+          const detailedMixer = sceneMixers.get(sceneObj)
+          if(detailedMixer) {
+            const anim = detailedMixer.mixer.clipAction(AnimationClip.findByName(detailedMixer.clips, animName).optimize())
             if(anim !== null) {
               anim.fadeOut(ANIM_FADE_DURATION)
             }
@@ -544,6 +541,7 @@
           adAnnounce(msg)
         })
 
+        const keyboardInput = new KeyboardInput(document.body)
         const gamepadInput = new GamepadInput(0)
         gamepadInput.onConnect(() => {
           document.querySelectorAll('.hud.input').forEach(hudInputElement => {
@@ -560,7 +558,7 @@
         // Higher importance inputs should be later in the list
         const inputs = [
           new PointerLockInput(document.getElementById('scene-container')),
-          new KeyboardInput(document.body),
+          keyboardInput,
           new VirtualJoystickInput(document.getElementById('virtual-joystick')),
           new TouchInput(sceneCanvas),
           new VirtualJumpBtnInput(document.getElementById('virtual-jump-button-container')),
@@ -587,9 +585,9 @@
           deltaT = Math.abs(tFrame - lastTimestamp)
           perfStatistics.begin()
           if(deltaT < 90 && deltaT !== 0) {
-            const gamepadReady = inputs[inputs.length - 1].ready()
-            const shouldPause = inputs[1].ready() && inputs[1].escapePressed()
-              || gamepadReady && inputs[inputs.length - 1].startBtnPressed()
+            const gamepadReady = gamepadInput.ready()
+            const shouldPause = keyboardInput.ready() && keyboardInput.escapePressed()
+              || gamepadReady && gamepadInput.startBtnPressed()
             if(shouldPause) {
               pauseGame()
               return
@@ -601,8 +599,8 @@
             const deltaSeconds = deltaT / 1000
             sim.step(deltaSeconds)
 
-            for(const mixer of sceneMixers.values()) {
-              mixer.update(deltaSeconds)
+            for(const detailedMixer of sceneMixers.values()) {
+              detailedMixer.mixer.update(deltaSeconds)
             }
 
             sceneGltf.scene.traverse((obj) => {
