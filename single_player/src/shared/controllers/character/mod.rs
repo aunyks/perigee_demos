@@ -17,6 +17,7 @@ mod utils;
 
 #[derive(Serialize, Deserialize)]
 pub struct CharacterController {
+    #[serde(skip)]
     config: Rc<CharacterControllerConfig>,
     scene_object_name: String,
     // Head up down rotation

@@ -50,6 +50,7 @@ impl WheelWell {
 
 #[derive(Serialize, Deserialize)]
 pub struct Car {
+    #[serde(skip)]
     config: Rc<CarConfig>,
     camera_boom: Boom,
     rigid_body_handle: RigidBodyHandle,

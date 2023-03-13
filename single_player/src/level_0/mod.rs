@@ -240,19 +240,8 @@ impl<'a> Sim<'a> {
 
         self.physics.step(delta_seconds);
 
-        while let Ok(_collision_event) = self.physics.get_collider_event() {
-            // match collision_event {
-            //     CollisionEvent::Started(col1, col2, _) | CollisionEvent::Stopped(col1, col2, _) => {
-            //         debug!("{:?} {:?} {:?}", self.player.collider_handle(), col1, col2);
-            //     }
-            // }
-            // debug!(
-            //     "{:?} {:?} {:?}",
-            //     collision_event.sensor(),
-            //     collision_event.started(),
-            //     collision_event.stopped()
-            // );
-        }
+        while let Ok(_collision_event) = self.physics.get_collider_event() {}
+        while let Ok(_contact_force_event) = self.physics.get_contact_force_event() {}
 
         // Ease the pressure of this channel
         while let Ok(player_event) = self.player.get_event() {
