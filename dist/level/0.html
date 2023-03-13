@@ -221,7 +221,6 @@
     <script src="/js/misc/mobile-safari-disable-pinch-zoom.js"></script>
     <script type="module">
       import {
-        Audio,
         Color,
         Object3D,
         AmbientLight,
@@ -244,7 +243,8 @@
         Euler,
         Mesh,
         InstancedMesh,
-        BackSide
+        BackSide,
+        PositionalAudio
       } from '/js/graphics/three.module.js'
       import {
         EffectComposer
@@ -463,10 +463,19 @@
 
         let isWallRunning = false
 
-        const audioTracks = new Map([
-          ['JUMP', { track: (new Audio(audioListener)).setBuffer(jumpAudioBuffer), detune: [2, 1] }],
-          ['SLIDE', { track: (new Audio(audioListener)).setBuffer(slideAudioBuffer), detune: [4, 2] }],
-          ['STEP', { track: (new Audio(audioListener)).setBuffer(footstepAudioBuffer), detune: [8, 4] }],
+        const playerJumpPositionalAudio = (new PositionalAudio(audioListener)).setBuffer(jumpAudioBuffer)
+        const playerSlidePositionalAudio = (new PositionalAudio(audioListener)).setBuffer(slideAudioBuffer)
+        const playerFootstepPositionalAudio = (new PositionalAudio(audioListener)).setBuffer(footstepAudioBuffer)
+        playerMesh.add(playerJumpPositionalAudio)
+        playerMesh.add(playerSlidePositionalAudio)
+        playerMesh.add(playerFootstepPositionalAudio)
+        const playerAudioTracks = new Map([
+          ['JUMP', { track: playerJumpPositionalAudio, detune: [2, 1] }],
+          ['SLIDE', { track: playerSlidePositionalAudio, detune: [4, 2] }],
+          ['STEP', { track: playerFootstepPositionalAudio, detune: [8, 4] }],
+        ])
+        const sceneTracks = new Map([
+          ['PLAYER', playerAudioTracks]
         ])
         const sceneMixers = new Map([
           ['PLAYER', { mixer: new AnimationMixer(playerModelGltf.scene), clips: playerModelGltf.animations }],
@@ -474,42 +483,51 @@
         ])
 
         sim.events.on('PLAY_AUDIO', (sceneObj, audioName, playbackRate) => {
-          const audio = audioTracks.get(audioName)
-          if(audio) {
-            const audioTrack = audio.track
-            if(audioTrack.isPlaying) {
-              audioTrack.stop()
+          const audioTracks = sceneTracks.get(sceneObj)
+          if(audioTracks) {
+            const audio = audioTracks.get(audioName)
+            if(audio) {
+              const audioTrack = audio.track
+              if(audioTrack.isPlaying) {
+                audioTrack.stop()
+              }
+              if(audio.detune) {
+                audioTrack.detune = 100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
+              }
+              audioTrack.play()
             }
-            if(audio.detune) {
-              audioTrack.detune = 100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
-            }
-            audioTrack.play()
           }
         })
 
         sim.events.on('LOOP_AUDIO', (sceneObj, audioName, playbackRate) => {
-          const audio = audioTracks.get(audioName)
-          if(audio) {
-            const audioTrack = audio.track
-            if(audioTrack.isPlaying) {
-              audioTrack.stop()
+          const audioTracks = sceneTracks.get(sceneObj)
+          if(audioTracks) {
+            const audio = audioTracks.get(audioName)
+            if(audio) {
+              const audioTrack = audio.track
+              if(audioTrack.isPlaying) {
+                audioTrack.stop()
+              }
+              if(audio.detune) {
+                audioTrack.detune = 100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
+              }
+              audioTrack.setLoop(true).play()
             }
-            if(audio.detune) {
-              audioTrack.detune = 100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
-            }
-            audioTrack.setLoop(true).play()
           }
         })
 
         sim.events.on('STOP_AUDIO', (sceneObj, audioName) => {
-          if(audioName === 'PLAYER_WALLRUN') {
-            isWallRunning = false
-          }
-          const audio = audioTracks.get(audioName)
-          if(audio) {
-            const audioTrack = audio.track
-            if(audioTrack.isPlaying) {
-              audioTrack.stop()
+          const audioTracks = sceneTracks.get(sceneObj)
+          if(audioTracks) {
+            if(audioName === 'WALLRUN') {
+              isWallRunning = false
+            }
+            const audio = audioTracks.get(audioName)
+            if(audio) {
+              const audioTrack = audio.track
+              if(audioTrack.isPlaying) {
+                audioTrack.stop()
+              }
             }
           }
         })
