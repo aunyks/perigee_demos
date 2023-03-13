@@ -1,8 +1,4 @@
-use crate::shared::{
-    controllers::{Car, CharacterController},
-    input::Input,
-    settings::GameSettings,
-};
+use crate::shared::{controllers::Car, input::Input, prefabs::Player, settings::GameSettings};
 use crate::{config::Level0Config, shared::events::CharacterControllerEvent};
 use events::Level0Event;
 use perigee::prelude::*;
@@ -17,7 +13,7 @@ pub struct Sim<'a> {
     pub settings: GameSettings,
     pub physics: PhysicsWorld,
     pois: PointsOfInterest,
-    pub player: CharacterController,
+    pub player: Player,
     pub car: Car,
     scene_gltf_bytes: &'a [u8],
     player_gltf_bytes: &'a [u8],
@@ -32,11 +28,11 @@ impl<'a> FromConfig for Sim<'a> {
 
     fn from_config<'b>(config: Self::Config<'b>) -> Self {
         let physics = PhysicsWorld::from_config(config.physics());
-        let player = CharacterController::from_config(config.character_controller());
+        let player = Player::from_config(config.player());
         let car = Car::from_config(config.car());
 
         let level_event_channel = if let Some(queue_cap) = config.level_event_queue_capacity() {
-            EventChannel::with_capacity(queue_cap)
+            EventChannel::with_capacity(*queue_cap)
         } else {
             EventChannel::default()
         };
@@ -90,14 +86,12 @@ impl<'a> Sim<'a> {
         self.physics.load_from_gltf(&scene_gltf).unwrap();
         self.pois.load_from_gltf(&scene_gltf).unwrap();
 
-        let player_gltf = Gltf::from_slice(self.player_gltf_bytes).unwrap();
-        self.player.add_to_physics_world(
-            &mut self.physics.rigid_body_set,
-            &mut self.physics.collider_set,
+        self.player.initialize(
+            &Gltf::from_slice(self.player_gltf_bytes).unwrap(),
+            &mut self.physics,
             None,
+            Some(String::from("PLAYER")),
         );
-        self.player.add_gltf_animations(&player_gltf);
-        self.player.set_scene_object_name(String::from("PLAYER"));
 
         self.car.add_to_physics_world(
             &mut self.physics.rigid_body_set,
@@ -225,17 +219,17 @@ impl<'a> Sim<'a> {
     /// Step the game simulation by the provided number of seconds.
     pub fn step(&mut self, delta_seconds: f32) {
         self.player.update(
-            delta_seconds,
-            &self.input,
             &self.settings,
+            &self.input,
             &mut self.physics,
+            delta_seconds,
         );
 
         self.car.update(
-            delta_seconds,
-            &self.input,
             &self.settings,
+            &self.input,
             &mut self.physics,
+            delta_seconds,
         );
 
         self.physics.step(delta_seconds);

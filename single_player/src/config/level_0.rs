@@ -1,4 +1,4 @@
-use crate::config::{CarConfig, CharacterControllerConfig};
+use crate::config::{CarConfig, PlayerConfig};
 use perigee::{
     config::PhysicsConfig,
     toml,
@@ -14,7 +14,7 @@ pub struct Level0Config {
     #[serde(default)]
     physics: PhysicsConfig,
     #[serde(default)]
-    character_controller: Rc<CharacterControllerConfig>,
+    player: Rc<PlayerConfig>,
     #[serde(default)]
     car: Rc<CarConfig>,
 }
@@ -24,7 +24,7 @@ impl Default for Level0Config {
         Self {
             level_event_queue_capacity: Some(5),
             physics: PhysicsConfig::default(),
-            character_controller: Rc::new(CharacterControllerConfig::default()),
+            player: Rc::new(PlayerConfig::default()),
             car: Rc::new(CarConfig::default()),
         }
     }
@@ -49,16 +49,16 @@ impl TryToToml for Level0Config {
 }
 
 impl Level0Config {
-    pub fn level_event_queue_capacity(&self) -> Option<usize> {
-        self.level_event_queue_capacity
+    pub fn level_event_queue_capacity(&self) -> &Option<usize> {
+        &self.level_event_queue_capacity
     }
 
     pub fn physics(&self) -> &PhysicsConfig {
         &self.physics
     }
 
-    pub fn character_controller(&self) -> &Rc<CharacterControllerConfig> {
-        &self.character_controller
+    pub fn player(&self) -> &Rc<PlayerConfig> {
+        &self.player
     }
 
     pub fn car(&self) -> &Rc<CarConfig> {

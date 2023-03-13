@@ -466,9 +466,9 @@
         const playerJumpPositionalAudio = (new PositionalAudio(audioListener)).setBuffer(jumpAudioBuffer)
         const playerSlidePositionalAudio = (new PositionalAudio(audioListener)).setBuffer(slideAudioBuffer)
         const playerFootstepPositionalAudio = (new PositionalAudio(audioListener)).setBuffer(footstepAudioBuffer)
-        playerMesh.add(playerJumpPositionalAudio)
-        playerMesh.add(playerSlidePositionalAudio)
-        playerMesh.add(playerFootstepPositionalAudio)
+        animatedCamera.add(playerJumpPositionalAudio)
+        animatedCamera.add(playerSlidePositionalAudio)
+        animatedCamera.add(playerFootstepPositionalAudio)
         const playerAudioTracks = new Map([
           ['JUMP', { track: playerJumpPositionalAudio, detune: [2, 1] }],
           ['SLIDE', { track: playerSlidePositionalAudio, detune: [4, 2] }],

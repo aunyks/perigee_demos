@@ -3,6 +3,7 @@ pub mod controllers;
 pub mod events;
 pub mod input;
 pub mod interactions;
+pub mod prefabs;
 pub mod settings;
 
 pub mod vectors {

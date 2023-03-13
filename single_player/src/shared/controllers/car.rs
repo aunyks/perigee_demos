@@ -145,10 +145,10 @@ impl Car {
 
     pub fn update(
         &mut self,
-        delta_seconds: f32,
-        input: &Input,
         settings: &GameSettings,
+        input: &Input,
         physics: &mut PhysicsWorld,
+        delta_seconds: f32,
     ) {
         let query_filter = QueryFilter::new();
 
