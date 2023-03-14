@@ -27,11 +27,11 @@ impl<'a> FromConfig for Sim<'a> {
     type Config<'b> = Level0Config;
 
     fn from_config<'b>(config: Self::Config<'b>) -> Self {
-        let physics = PhysicsWorld::from_config(config.physics());
-        let player = Player::from_config(config.player());
-        let car = Car::from_config(config.car());
+        let physics = PhysicsWorld::from_config(&config.physics);
+        let player = Player::from_config(&config.player);
+        let car = Car::from_config(&config.car);
 
-        let level_event_channel = if let Some(queue_cap) = config.level_event_queue_capacity() {
+        let level_event_channel = if let Some(queue_cap) = &config.level_event_queue_capacity {
             EventChannel::with_capacity(*queue_cap)
         } else {
             EventChannel::default()

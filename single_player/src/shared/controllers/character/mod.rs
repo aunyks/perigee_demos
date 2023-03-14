@@ -48,28 +48,28 @@ impl FromConfig for CharacterController {
             config: Rc::clone(config),
             head_x_rotation: UnitQuaternion::identity(),
             head_z_rotation: UnitQuaternion::identity(),
-            head_isometry: Isometry::from(Vector3::from(config.standing_head_translation_offset())),
+            head_isometry: Isometry::from(Vector3::from(config.standing_head_translation_offset)),
             body_isometry: Isometry::identity(),
             boom: Boom::new(
-                config.default_boom_arm_length(),
-                config.default_boom_arm_pitch_angle(),
-                config.default_boom_arm_yaw_angle(),
+                config.default_boom_arm_length,
+                config.default_boom_arm_pitch_angle,
+                config.default_boom_arm_yaw_angle,
                 false,
             ),
             default_boom: Boom::new(
-                config.default_boom_arm_length(),
-                config.default_boom_arm_pitch_angle(),
-                config.default_boom_arm_yaw_angle(),
+                config.default_boom_arm_length,
+                config.default_boom_arm_pitch_angle,
+                config.default_boom_arm_yaw_angle,
                 false,
             ),
             aim_boom: Boom::new(
-                config.aim_boom_arm_length(),
-                config.aim_boom_arm_pitch_angle(),
-                config.aim_boom_arm_yaw_angle(),
+                config.aim_boom_arm_length,
+                config.aim_boom_arm_pitch_angle,
+                config.aim_boom_arm_yaw_angle,
                 false,
             ),
-            perspective_mode: StateMachine::new(config.initial_perspective_mode()),
-            movement_mode: StateMachine::new(config.movement_mode()),
+            perspective_mode: StateMachine::new(config.initial_perspective_mode),
+            movement_mode: StateMachine::new(config.movement_mode),
             body_linear_velocity: Vector3::default(),
             rigid_body_handle: RigidBodyHandle::default(),
             collider_handle: ColliderHandle::default(),
@@ -79,7 +79,7 @@ impl FromConfig for CharacterController {
             coyote_timer: PassiveClock::default(),
             jump_cooldown_timer: PassiveClock::default(),
             sliding_state: StateMachine::new(SlidingState::None),
-            event_channel: EventChannel::with_capacity(config.event_queue_capacity()),
+            event_channel: EventChannel::with_capacity(config.event_queue_capacity),
         }
     }
 
@@ -104,7 +104,7 @@ impl CharacterController {
             // this collider
             .active_events(ActiveEvents::COLLISION_EVENTS)
             // Set the mass (in kg, I think) of the collider
-            .density(self.config.mass())
+            .density(self.config.mass)
             .build()
     }
 
@@ -112,11 +112,11 @@ impl CharacterController {
         match self.crouch_state.current_state() {
             CrouchState::Upright => (
                 self.config.capsule_standing_half_height(),
-                self.config.capsule_standing_radius(),
+                self.config.capsule_standing_radius,
             ),
             CrouchState::Crouched => (
                 self.config.capsule_crouched_half_height(),
-                self.config.capsule_crouched_radius(),
+                self.config.capsule_crouched_radius,
             ),
         }
     }
@@ -184,15 +184,15 @@ impl CharacterController {
                     * (2.5 * f32::from(settings.left_right_look_sensitivity()) / 5.0).to_radians(),
                 input.rotate_up()
                     * (5.0 * f32::from(settings.up_down_look_sensitivity()) / 5.0).to_radians(),
-                self.config.max_look_up_angle(),
-                self.config.min_look_up_angle(),
+                self.config.max_look_up_angle,
+                self.config.min_look_up_angle,
             );
         }
 
         if self.perspective_mode == PerspectiveMode::FirstPerson
             || (self.perspective_mode == PerspectiveMode::ThirdPersonCombat
                 && self.body_linear_velocity().magnitude()
-                    > self.config.nonstationary_speed_threshold())
+                    > self.config.nonstationary_speed_threshold)
         {
             self.rotate_body(
                 -input.rotate_right()
@@ -204,8 +204,8 @@ impl CharacterController {
                 self.rotate_head(
                     input.rotate_up()
                         * (5.0 * f32::from(settings.up_down_look_sensitivity()) / 5.0).to_radians(),
-                    self.config.max_look_up_angle(),
-                    self.config.min_look_up_angle(),
+                    self.config.max_look_up_angle,
+                    self.config.min_look_up_angle,
                 );
             }
         }
@@ -288,8 +288,8 @@ impl CharacterController {
 
         self.jump_cooldown_timer.tick(delta_seconds);
         let max_jump_cooldown_timer_duration = match self.crouch_state.current_state() {
-            CrouchState::Upright => self.config.min_jump_standing_cooldown_duration(),
-            CrouchState::Crouched => self.config.min_jump_crouched_cooldown_duration(),
+            CrouchState::Upright => self.config.min_jump_standing_cooldown_duration,
+            CrouchState::Crouched => self.config.min_jump_crouched_cooldown_duration,
         };
         if !self.is_grounded() && self.wallrunning_state == WallRunning::None {
             self.coyote_timer.tick(delta_seconds);
@@ -321,7 +321,7 @@ impl CharacterController {
             let is_grounded_or_wallrunning =
                 self.wallrunning_state != WallRunning::None || self.is_grounded();
             let can_coyote_jump = self.coyote_timer.elapsed()
-                < Duration::from_secs_f32(self.config.max_jump_coyote_duration());
+                < Duration::from_secs_f32(self.config.max_jump_coyote_duration);
 
             if jump_has_cooled_down
                 && (is_grounded_or_wallrunning || can_coyote_jump)
@@ -335,7 +335,7 @@ impl CharacterController {
             (true, &CrouchState::Upright) => {
                 self.change_crouch_state(
                     self.config.capsule_crouched_half_height(),
-                    self.config.capsule_crouched_radius(),
+                    self.config.capsule_crouched_radius,
                     &mut physics.rigid_body_set,
                     &mut physics.collider_set,
                     &mut physics.island_manager,
@@ -343,8 +343,8 @@ impl CharacterController {
                 // If we're moving fast enough, then this is a slide.
                 // Otherwise it's a normal crouch
                 if self.body_linear_velocity().xz().magnitude()
-                    < self.config.sliding_speed_factor()
-                        * self.config.max_standing_move_speed_continuous()
+                    < self.config.sliding_speed_factor
+                        * self.config.max_standing_move_speed_continuous
                 {
                     self.event_channel.send(CharacterControllerEvent::Crouched);
                 }
@@ -358,7 +358,7 @@ impl CharacterController {
                 ) {
                     self.change_crouch_state(
                         self.config.capsule_standing_half_height(),
-                        self.config.capsule_standing_radius(),
+                        self.config.capsule_standing_radius,
                         &mut physics.rigid_body_set,
                         &mut physics.collider_set,
                         &mut physics.island_manager,
@@ -374,9 +374,9 @@ impl CharacterController {
 
         if self.perspective_mode.is_third_person() {
             let max_boom_arm_length = if input.aim() {
-                self.config.aim_boom_arm_length()
+                self.config.aim_boom_arm_length
             } else {
-                self.config.default_boom_arm_length()
+                self.config.default_boom_arm_length
             };
             self.prevent_camera_obstructions(
                 &mut physics.query_pipeline,
@@ -402,7 +402,7 @@ impl CharacterController {
             CrouchState::Crouched => self.head_crouched_isometry().translation.vector,
         };
         let lerp_factor = if self.is_grounded() {
-            self.config.head_crouch_lerp_factor()
+            self.config.head_crouch_lerp_factor
         } else {
             1.0
         };
@@ -456,7 +456,7 @@ impl CharacterController {
 
             self.boom.lerp_mut(
                 &target_boom,
-                framerate_independent_interp_t(self.config.boom_lerp_factor(), delta_seconds),
+                framerate_independent_interp_t(self.config.boom_lerp_factor, delta_seconds),
             );
         }
     }
@@ -495,7 +495,7 @@ impl CharacterController {
                         .try_lerp_slerp(
                             &boom_yaw_isometry,
                             framerate_independent_interp_t(
-                                self.config.tpcombat_boom_rotation_lerp_factor(),
+                                self.config.tpcombat_boom_rotation_lerp_factor,
                                 delta_seconds,
                             ),
                             0.0,
@@ -540,7 +540,7 @@ impl CharacterController {
                 let new_body_rotation = match body_iso.rotation.try_slerp(
                     &UnitQuaternion::face_towards(&-move_direction, &Vector3::y_axis()),
                     framerate_independent_interp_t(
-                        self.config.rotate_body_to_movement_dir_lerp_factor(),
+                        self.config.rotate_body_to_movement_dir_lerp_factor,
                         delta_seconds,
                     ),
                     0.01,
@@ -615,14 +615,14 @@ impl CharacterController {
 
     pub fn head_standing_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
         Isometry::from_parts(
-            self.config.standing_head_translation_offset().into(),
+            self.config.standing_head_translation_offset.into(),
             self.head_rotation(),
         )
     }
 
     pub fn head_crouched_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
         Isometry::from_parts(
-            self.config.crouched_head_translation_offset().into(),
+            self.config.crouched_head_translation_offset.into(),
             self.head_rotation(),
         )
     }
@@ -697,12 +697,12 @@ impl CharacterController {
         rigid_body_set: &mut RigidBodySet,
     ) {
         let max_move_speed = match self.crouch_state.current_state() {
-            CrouchState::Upright => self.config.max_standing_move_speed_continuous(),
-            CrouchState::Crouched => self.config.max_crouched_move_speed_continuous(),
+            CrouchState::Upright => self.config.max_standing_move_speed_continuous,
+            CrouchState::Crouched => self.config.max_crouched_move_speed_continuous,
         };
         let max_move_acceleration = match self.crouch_state.current_state() {
-            CrouchState::Upright => self.config.max_standing_move_acceleration_continuous(),
-            CrouchState::Crouched => self.config.max_crouched_move_acceleration_continuous(),
+            CrouchState::Upright => self.config.max_standing_move_acceleration_continuous,
+            CrouchState::Crouched => self.config.max_crouched_move_acceleration_continuous,
         };
         let movement_vector = Vector3::new(left_right_magnitude, 0.0, forward_back_magnitude);
         let trying_to_move = movement_vector.magnitude() > 0.0;
@@ -739,38 +739,37 @@ impl CharacterController {
             PerspectiveMode::FirstPerson | PerspectiveMode::ThirdPersonBasic => true,
             PerspectiveMode::ThirdPersonCombat => {
                 capped_movement_vector.angle(&FORWARD_VECTOR).to_degrees()
-                    <= self.config.max_sprint_forward_angle_threshold_discrete()
+                    <= self.config.max_sprint_forward_angle_threshold_discrete
             }
         };
         let movement_mag = capped_movement_vector.magnitude();
         let move_speed = match self.crouch_state.current_state() {
             CrouchState::Upright => {
                 if is_moving_forward {
-                    if movement_mag >= self.config.standing_sprint_input_threshold() {
-                        self.config.standing_sprint_speed_discrete()
-                    } else if movement_mag >= self.config.standing_run_input_threshold() {
-                        self.config.standing_run_speed_discrete()
+                    if movement_mag >= self.config.standing_sprint_input_threshold {
+                        self.config.standing_sprint_speed_discrete
+                    } else if movement_mag >= self.config.standing_run_input_threshold {
+                        self.config.standing_run_speed_discrete
                     } else {
-                        self.config.standing_walk_speed_discrete()
+                        self.config.standing_walk_speed_discrete
                     }
                 } else {
-                    self.config.standing_walk_speed_discrete()
+                    self.config.standing_walk_speed_discrete
                 }
             }
-            CrouchState::Crouched => self.config.crouched_creep_speed_discrete(),
+            CrouchState::Crouched => self.config.crouched_creep_speed_discrete,
         };
         let move_acceleration = match self.crouch_state.current_state() {
             CrouchState::Upright => {
-                if is_moving_forward && movement_mag > self.config.standing_sprint_input_threshold()
-                {
-                    self.config.standing_sprint_acceleration_discrete()
-                } else if movement_mag > self.config.standing_run_input_threshold() {
-                    self.config.standing_run_acceleration_discrete()
+                if is_moving_forward && movement_mag > self.config.standing_sprint_input_threshold {
+                    self.config.standing_sprint_acceleration_discrete
+                } else if movement_mag > self.config.standing_run_input_threshold {
+                    self.config.standing_run_acceleration_discrete
                 } else {
-                    self.config.standing_walk_acceleration_discrete()
+                    self.config.standing_walk_acceleration_discrete
                 }
             }
-            CrouchState::Crouched => self.config.crouched_creep_acceleration_discrete(),
+            CrouchState::Crouched => self.config.crouched_creep_acceleration_discrete,
         };
 
         self.move_body(
@@ -783,11 +782,11 @@ impl CharacterController {
 
     fn jump(&mut self, rigid_body_set: &mut RigidBodySet) {
         let jump_acceleration = match self.crouch_state.current_state() {
-            CrouchState::Upright => self.config.jump_standing_acceleration(),
+            CrouchState::Upright => self.config.jump_standing_acceleration,
             CrouchState::Crouched => match self.sliding_state.current_state() {
-                SlidingState::None => self.config.jump_crouched_acceleration(),
+                SlidingState::None => self.config.jump_crouched_acceleration,
                 SlidingState::Normal => 0.0,
-                SlidingState::Downhill => self.config.jump_standing_acceleration(),
+                SlidingState::Downhill => self.config.jump_standing_acceleration,
             },
         };
         self.jump_body(jump_acceleration, rigid_body_set);
@@ -805,12 +804,12 @@ impl CharacterController {
         // And also away from the wall
         let jump_vector = match self.wallrunning_state.current_state() {
             WallRunning::OnRight(untransformed_wall_normal) => {
-                untransformed_wall_normal * self.config.jump_wallrunning_normal_scale()
-                    + untransformed_jump_direction_vector * self.config.jump_wallrunning_scale()
+                untransformed_wall_normal * self.config.jump_wallrunning_normal_scale
+                    + untransformed_jump_direction_vector * self.config.jump_wallrunning_scale
             }
             WallRunning::OnLeft(untransformed_wall_normal) => {
-                untransformed_wall_normal * self.config.jump_wallrunning_normal_scale()
-                    + untransformed_jump_direction_vector * self.config.jump_wallrunning_scale()
+                untransformed_wall_normal * self.config.jump_wallrunning_normal_scale
+                    + untransformed_jump_direction_vector * self.config.jump_wallrunning_scale
             }
             WallRunning::None => UP_VECTOR,
         } * jump_acceleration;
@@ -825,7 +824,7 @@ impl CharacterController {
                 self.wallrunning_state.current_state(),
                 WallRunning::OnRight(_) | WallRunning::OnLeft(_)
             ) && current_velocity.angle(&DOWN_VECTOR).to_degrees()
-                <= self.config.jump_wallrunning_down_velocity_angle_threshold()
+                <= self.config.jump_wallrunning_down_velocity_angle_threshold
             {
                 body.set_linvel(
                     Vector3::new(current_velocity.x, 0.0, current_velocity.z),
@@ -873,7 +872,7 @@ impl CharacterController {
                 body_isometry,
                 &DOWN_VECTOR,
                 &Capsule::new_y(cap_halfheight, cap_radius),
-                self.config.ground_ray_length(),
+                self.config.ground_ray_length,
                 true,
                 query_filter.exclude_collider(self.collider_handle()), // query_filter_excluding_player(),
             ) {
@@ -901,7 +900,7 @@ impl CharacterController {
         }
         let body_handle = self.body_handle();
         let body_isometry = self.body_isometry();
-        let ray_distance_from_body = self.config.wallrunning_ray_length();
+        let ray_distance_from_body = self.config.wallrunning_ray_length;
         let body_linear_velocity = self.body_linear_velocity();
         if rigid_body_set.get(body_handle).is_some() {
             // Can only wallrun if moving forward enough
@@ -909,7 +908,7 @@ impl CharacterController {
             if body_linear_velocity
                 .angle(&transformed_forward_vector)
                 .to_degrees()
-                > self.config.max_wallrunning_forward_angle()
+                > self.config.max_wallrunning_forward_angle
             {
                 self.wallrunning_state.transition_to(WallRunning::None);
                 return;
@@ -960,21 +959,20 @@ impl CharacterController {
         if let Some(ground_normal) = self.ground_normal() {
             let planar_forward = project_on_plane(&FORWARD_VECTOR, &ground_normal);
             let on_slope = ground_normal.angle(&UP_VECTOR).to_degrees()
-                <= self.config.endless_slide_ground_normal_max_up_angle();
+                <= self.config.endless_slide_ground_normal_max_up_angle;
             let moving_downhill = self.body_linear_velocity().angle(&DOWN_VECTOR).to_degrees()
-                <= self.config.endless_slide_downhill_max_down_angle();
+                <= self.config.endless_slide_downhill_max_down_angle;
 
             let is_sliding = self.crouch_state.current_state() == &CrouchState::Crouched
                 && self
                     .body_linear_velocity
                     .angle(&body_isometry.transform_vector(&planar_forward))
                     .to_degrees()
-                    <= self.config.sliding_max_forward_angle();
+                    <= self.config.sliding_max_forward_angle;
             let sliding_type = if on_slope && moving_downhill {
                 SlidingState::Downhill
             } else if self.body_linear_velocity().magnitude()
-                >= self.config.sliding_speed_factor()
-                    * self.config.max_standing_move_speed_continuous()
+                >= self.config.sliding_speed_factor * self.config.max_standing_move_speed_continuous
             {
                 SlidingState::Normal
             } else {
@@ -1005,9 +1003,9 @@ impl CharacterController {
             UnitQuaternion::from_axis_angle(&z_axis, 0.0)
         };
         let tilt_speed = if self.wallrunning_state == WallRunning::None {
-            self.config.enter_head_tilt_factor()
+            self.config.enter_head_tilt_factor
         } else {
-            self.config.exit_head_tilt_factor()
+            self.config.exit_head_tilt_factor
         };
         self.head_z_rotation = self
             .head_z_rotation
@@ -1024,12 +1022,11 @@ impl CharacterController {
     ) -> bool {
         let standing_collider = self.build_collider(
             self.config.capsule_standing_half_height(),
-            self.config.capsule_standing_radius(),
+            self.config.capsule_standing_radius,
         );
         let standing_shape = standing_collider.shape();
         let distance_between_standing_and_crouched_heights =
-            self.config.capsule_standing_total_height()
-                - self.config.capsule_crouched_total_height();
+            self.config.capsule_standing_total_height - self.config.capsule_crouched_total_height;
         if let Some(body) = rigid_body_set.get(self.body_handle()) {
             let next_body_isometry = body.next_position();
             let standing_trans = (next_body_isometry * self.head_standing_isometry()).translation;
@@ -1086,8 +1083,7 @@ impl CharacterController {
         island_manager: &mut IslandManager,
     ) {
         let distance_between_standing_and_crouched_heights =
-            self.config.capsule_standing_total_height()
-                - self.config.capsule_crouched_total_height();
+            self.config.capsule_standing_total_height - self.config.capsule_crouched_total_height;
 
         if let Some(body) = rigid_body_set.get_mut(self.body_handle()) {
             let next_body_isometry = body.next_position();
@@ -1139,10 +1135,10 @@ impl CharacterController {
         let current_velocity = self.body_linear_velocity();
         if let Some(body) = rigid_body_set.get_mut(self.body_handle()) {
             body.reset_forces(true);
-            body.set_gravity_scale(self.config.start_wallrunning_gravity_scale(), true);
+            body.set_gravity_scale(self.config.start_wallrunning_gravity_scale, true);
             let new_linvel = Vector3::new(
                 current_velocity.x,
-                self.config.start_wallrunning_up_impulse(),
+                self.config.start_wallrunning_up_impulse,
                 current_velocity.z,
             );
             body.set_linvel(new_linvel, true);
@@ -1163,7 +1159,7 @@ impl CharacterController {
             match *self.sliding_state.current_state() {
                 SlidingState::Downhill => {
                     let planar_endless_sliding_acceleration = project_on_plane(
-                        &self.config.endless_sliding_acceleration().into(),
+                        &self.config.endless_sliding_acceleration.into(),
                         &self.ground_normal().unwrap(),
                     );
                     let transformed_endless_sliding_acceleration =
@@ -1172,13 +1168,13 @@ impl CharacterController {
                 }
                 SlidingState::Normal => {
                     let planar_sliding_deceleration = project_on_plane(
-                        &self.config.sliding_deceleration().into(),
+                        &self.config.sliding_deceleration.into(),
                         &self.ground_normal().unwrap(),
                     );
                     let transformed_sliding_deceleration =
                         body_isometry.transform_vector(&planar_sliding_deceleration);
                     let planar_sliding_velocity_increase = project_on_plane(
-                        &self.config.sliding_velocity_increase().into(),
+                        &self.config.sliding_velocity_increase.into(),
                         &self.ground_normal().as_ref().unwrap(),
                     );
                     let transformed_sliding_velocity_increase =

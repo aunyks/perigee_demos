@@ -32,16 +32,16 @@ struct WheelWell {
 impl WheelWell {
     pub fn from_config(config: &WheelWellConfig, default_suspension_max_length: f32) -> Self {
         Self {
-            receives_power: config.receives_power(),
-            steer_state: if config.steers_on_input() {
+            receives_power: config.receives_power,
+            steer_state: if config.steers_on_input {
                 Some(UnitQuaternion::identity())
             } else {
                 None
             },
             shock: Shock {
-                translation: Translation::from(config.center_cabin_relative_position()),
+                translation: Translation::from(config.center_cabin_relative_position),
                 last_toi: config
-                    .suspension_max_length()
+                    .suspension_max_length
                     .unwrap_or(default_suspension_max_length),
             },
         }
@@ -62,11 +62,11 @@ pub struct Car {
 impl FromConfig for Car {
     type Config<'a> = &'a Rc<CarConfig>;
     fn from_config<'a>(config: Self::Config<'a>) -> Self {
-        let mut wheel_wells: Vec<WheelWell> = Vec::with_capacity(config.wheel_wells().len());
-        for well_config in config.wheel_wells() {
+        let mut wheel_wells: Vec<WheelWell> = Vec::with_capacity(config.wheel_wells.len());
+        for well_config in config.wheel_wells.iter() {
             wheel_wells.push(WheelWell::from_config(
                 well_config,
-                config.suspension_max_length(),
+                config.suspension_max_length,
             ));
         }
         Self {
@@ -75,9 +75,9 @@ impl FromConfig for Car {
             suspension_ray: Ray::new(Point::new(0.0, 0.0, 0.0), Vector3::new(0.0, -1.0, 0.0)),
             cabin_isometry: Isometry::default(),
             camera_boom: Boom::new(
-                config.max_boom_length(),
-                config.initial_boom_pitch_angle(),
-                config.initial_boom_yaw_angle(),
+                config.max_boom_length,
+                config.initial_boom_pitch_angle,
+                config.initial_boom_yaw_angle,
                 true,
             ),
             suspension_system: wheel_wells,
@@ -101,7 +101,7 @@ impl Car {
         } else {
             Isometry::from(Vector3::new(
                 0.0,
-                self.config.suspension_max_length() + 1.0,
+                self.config.suspension_max_length + 1.0,
                 6.0,
             ))
         };
@@ -110,9 +110,9 @@ impl Car {
             .position(initial_isometry)
             .build();
         let cabin_collider = ColliderBuilder::cuboid(
-            self.config.cabin_half_width(),
-            self.config.cabin_half_height(),
-            self.config.cabin_half_length(),
+            self.config.cabin_half_width,
+            self.config.cabin_half_height,
+            self.config.cabin_half_length,
         )
         .collision_groups(
             InteractionGroups::all().with_memberships(Group::from_bits_truncate(
@@ -123,7 +123,7 @@ impl Car {
         // this collider
         .active_events(ActiveEvents::COLLISION_EVENTS)
         // Set the mass (in kg, I think) of the collider
-        .density(self.config.mass())
+        .density(self.config.mass)
         .build();
 
         let rigid_body_handle = rigid_body_set.insert(rigid_body);
@@ -165,8 +165,8 @@ impl Car {
                     * (2.5 * f32::from(settings.left_right_look_sensitivity()) / 5.0).to_radians(),
                 input.rotate_up()
                     * (5.0 * f32::from(settings.up_down_look_sensitivity()) / 5.0).to_radians(),
-                self.config.max_look_up_angle(),
-                self.config.min_look_up_angle(),
+                self.config.max_look_up_angle,
+                self.config.min_look_up_angle,
             );
 
             Self::prevent_camera_obstructions(
@@ -188,7 +188,7 @@ impl Car {
                         &cloned_rigid_body_set,
                         &physics.collider_set,
                         &shock_ray,
-                        self.config.suspension_max_length(),
+                        self.config.suspension_max_length,
                         true,
                         query_filter.exclude_rigid_body(cabin_body_handle),
                     )
@@ -240,7 +240,7 @@ impl Car {
                         );
                     }
                 } else {
-                    wheel_well.shock.last_toi = self.config.suspension_max_length();
+                    wheel_well.shock.last_toi = self.config.suspension_max_length;
                 }
             }
         }
@@ -257,13 +257,13 @@ impl Car {
     ) {
         let up = -shock_ray.dir;
 
-        let spring_compression = config.suspension_max_length() - intersection_details.toi;
+        let spring_compression = config.suspension_max_length - intersection_details.toi;
 
-        let spring_force = up * config.shock_spring_constant() * spring_compression;
+        let spring_force = up * config.shock_spring_constant * spring_compression;
 
         let up_velocity = (intersection_details.toi - shock.last_toi) / delta_seconds;
 
-        let dampening_force = up * up_velocity * config.shock_spring_dampening_factor();
+        let dampening_force = up * up_velocity * config.shock_spring_dampening_factor;
 
         let shock_force = spring_force - dampening_force;
 
@@ -284,7 +284,7 @@ impl Car {
         let force_direction = global_steer_state * FORWARD_VECTOR;
         cabin_body.apply_impulse_at_point(
             force_direction
-                * config.throttle_force()
+                * config.throttle_force
                 * f32::max(0.0, input.throttle())
                 * delta_seconds,
             force_app_location,
@@ -304,7 +304,7 @@ impl Car {
     ) {
         let force_direction = global_steer_state * BACK_VECTOR;
         cabin_body.apply_impulse_at_point(
-            force_direction * config.brake_force() * f32::max(0.0, input.brake()) * delta_seconds,
+            force_direction * config.brake_force * f32::max(0.0, input.brake()) * delta_seconds,
             force_app_location,
             true,
         );
@@ -331,7 +331,7 @@ impl Car {
         let wheel_local_frame_goal_velocity = move_towards(
             &wheel_local_turn_velocity,
             &wheel_local_turn_velocity_no_drift,
-            config.wheel_grip() * delta_seconds,
+            config.wheel_grip * delta_seconds,
         );
 
         let wheel_local_frame_acceleration =
@@ -357,12 +357,12 @@ impl Car {
         wheel_orientation.clone_from(
             &UnitQuaternion::from_axis_angle(
                 &Unit::new_normalize(UP_VECTOR),
-                config.wheel_left_turn_angle().to_radians(),
+                config.wheel_left_turn_angle.to_radians(),
             )
             .slerp(
                 &UnitQuaternion::from_axis_angle(
                     &Unit::new_normalize(UP_VECTOR),
-                    config.wheel_right_turn_angle().to_radians(),
+                    config.wheel_right_turn_angle.to_radians(),
                 ),
                 steer_lerp_t,
             ),
@@ -412,13 +412,13 @@ impl Car {
                 },
                 diff_vec.normalize(),
             ),
-            config.max_boom_length(),
+            config.max_boom_length,
             true,
             query_filter_excluding_cabin,
         ) {
             camera_boom.set_length(hit_toi - 0.03);
         } else {
-            camera_boom.set_length(config.max_boom_length());
+            camera_boom.set_length(config.max_boom_length);
         }
     }
 }

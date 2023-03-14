@@ -1,57 +1,36 @@
-use getset::{CopyGetters, Getters};
+use getset::Getters;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, CopyGetters)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct WheelWellConfig {
-    #[getset(get_copy = "pub")]
-    receives_power: bool,
-    #[getset(get_copy = "pub")]
-    center_cabin_relative_position: [f32; 3],
+    pub receives_power: bool,
+    pub center_cabin_relative_position: [f32; 3],
     /// If `None` then default to the car suspension max length
-    #[getset(get_copy = "pub")]
-    suspension_max_length: Option<f32>,
-    #[getset(get_copy = "pub")]
-    steers_on_input: bool,
+    pub suspension_max_length: Option<f32>,
+    pub steers_on_input: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, CopyGetters, Getters)]
+#[derive(Debug, Clone, Serialize, Deserialize, Getters)]
 pub struct CarConfig {
-    #[getset(get_copy = "pub")]
-    cabin_half_width: f32,
-    #[getset(get_copy = "pub")]
-    cabin_half_height: f32,
-    #[getset(get_copy = "pub")]
-    cabin_half_length: f32,
-    #[getset(get_copy = "pub")]
-    shock_spring_constant: f32,
-    #[getset(get_copy = "pub")]
-    shock_spring_dampening_factor: f32,
-    #[getset(get_copy = "pub")]
-    mass: f32,
-    #[getset(get_copy = "pub")]
-    suspension_max_length: f32,
-    #[getset(get_copy = "pub")]
-    brake_force: f32,
-    #[getset(get_copy = "pub")]
-    throttle_force: f32,
-    #[getset(get_copy = "pub")]
-    wheel_grip: f32,
-    #[getset(get_copy = "pub")]
-    wheel_left_turn_angle: f32,
-    #[getset(get_copy = "pub")]
-    wheel_right_turn_angle: f32,
-    #[getset(get_copy = "pub")]
-    max_look_up_angle: f32,
-    #[getset(get_copy = "pub")]
-    min_look_up_angle: f32,
-    #[getset(get_copy = "pub")]
-    max_boom_length: f32,
-    #[getset(get_copy = "pub")]
-    initial_boom_pitch_angle: f32,
-    #[getset(get_copy = "pub")]
-    initial_boom_yaw_angle: f32,
+    pub cabin_half_width: f32,
+    pub cabin_half_height: f32,
+    pub cabin_half_length: f32,
+    pub shock_spring_constant: f32,
+    pub shock_spring_dampening_factor: f32,
+    pub mass: f32,
+    pub suspension_max_length: f32,
+    pub brake_force: f32,
+    pub throttle_force: f32,
+    pub wheel_grip: f32,
+    pub wheel_left_turn_angle: f32,
+    pub wheel_right_turn_angle: f32,
+    pub max_look_up_angle: f32,
+    pub min_look_up_angle: f32,
+    pub max_boom_length: f32,
+    pub initial_boom_pitch_angle: f32,
+    pub initial_boom_yaw_angle: f32,
     #[getset(get = "pub")]
-    wheel_wells: Vec<WheelWellConfig>,
+    pub wheel_wells: Vec<WheelWellConfig>,
 }
 
 impl Default for CarConfig {

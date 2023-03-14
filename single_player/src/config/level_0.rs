@@ -10,13 +10,13 @@ use std::rc::Rc;
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Level0Config {
     #[serde(default)]
-    level_event_queue_capacity: Option<usize>,
+    pub level_event_queue_capacity: Option<usize>,
     #[serde(default)]
-    physics: PhysicsConfig,
+    pub physics: PhysicsConfig,
     #[serde(default)]
-    player: Rc<PlayerConfig>,
+    pub player: Rc<PlayerConfig>,
     #[serde(default)]
-    car: Rc<CarConfig>,
+    pub car: Rc<CarConfig>,
 }
 
 impl Default for Level0Config {
@@ -45,24 +45,6 @@ impl TryToToml for Level0Config {
             Ok(config_toml) => Ok(config_toml),
             Err(toml_ser_err) => Err(toml_ser_err.to_string()),
         }
-    }
-}
-
-impl Level0Config {
-    pub fn level_event_queue_capacity(&self) -> &Option<usize> {
-        &self.level_event_queue_capacity
-    }
-
-    pub fn physics(&self) -> &PhysicsConfig {
-        &self.physics
-    }
-
-    pub fn player(&self) -> &Rc<PlayerConfig> {
-        &self.player
-    }
-
-    pub fn car(&self) -> &Rc<CarConfig> {
-        &self.car
     }
 }
 

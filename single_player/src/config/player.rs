@@ -1,21 +1,21 @@
-use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 
 use crate::config::CharacterControllerConfig;
 
-#[derive(Debug, Clone, Serialize, Deserialize, CopyGetters, Getters)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayerConfig {
-    #[getset(get = "pub")]
-    character_controller: Rc<CharacterControllerConfig>,
-    #[getset(get_copy = "pub")]
-    event_queue_capacity: usize,
+    pub character_controller: Rc<CharacterControllerConfig>,
+    pub event_queue_capacity: usize,
 }
 
 impl Default for PlayerConfig {
     fn default() -> Self {
         Self {
-            character_controller: Rc::new(CharacterControllerConfig::default()),
+            character_controller: Rc::new(CharacterControllerConfig {
+                mass: 20.0,
+                ..Default::default()
+            }),
             event_queue_capacity: 10,
         }
     }
