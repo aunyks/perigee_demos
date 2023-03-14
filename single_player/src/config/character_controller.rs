@@ -161,9 +161,10 @@ pub struct CharacterControllerConfig {
     pub tpcombat_boom_rotation_lerp_factor: f32,
     /// The lerp factor for the character controller body to rotate in the character controller's movement direction.
     pub rotate_body_to_movement_dir_lerp_factor: f32,
-
+    /// The perspective mode at the start of the sim. The controller itself may
+    /// change its mode later
     pub initial_perspective_mode: PerspectiveMode,
-
+    /// The movement mode of the character
     pub movement_mode: MovementMode,
 }
 

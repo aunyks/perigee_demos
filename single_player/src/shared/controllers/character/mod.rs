@@ -128,6 +128,11 @@ impl CharacterController {
     pub fn perspective_mode(&self) -> &PerspectiveMode {
         &self.perspective_mode.current_state()
     }
+
+    pub fn set_perspective_mode(&mut self, new_perspective_mode: PerspectiveMode) {
+        self.perspective_mode.transition_to(new_perspective_mode);
+    }
+
     /// Create a rigid body and collider for the character controller based on the the provided configuration parameters
     /// and / or default parameters, then add them to the provided `RigidBodySet` and `ColliderSet`.
     ///
