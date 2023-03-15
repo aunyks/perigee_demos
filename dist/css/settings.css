@@ -1,0 +1,8 @@
+label[for][data-debug] {
+    display: inline-block;
+    margin-bottom: 1em;
+}
+
+#settings-back-button {
+    margin-top: 1em;
+}

@@ -1,0 +1,593 @@
+import {
+  Object3D,
+  AmbientLight,
+  Scene,
+  WebGLRenderer,
+  AnimationMixer,
+  AnimationClip,
+  AudioListener,
+  ColorManagement,
+  Group,
+  MeshBasicMaterial,
+  Vector2,
+  ACESFilmicToneMapping,
+  sRGBEncoding,
+  CapsuleGeometry,
+  BoxGeometry,
+  Mesh,
+  PositionalAudio,
+} from '/js/graphics/three.module.js'
+import { EffectComposer } from '/js/graphics/postprocessing/EffectComposer.js'
+import { RenderPass } from '/js/graphics/postprocessing/RenderPass.js'
+import { UnrealBloomPass } from '/js/graphics/postprocessing/UnrealBloomPass.js'
+import { ShaderPass } from '/js/graphics/postprocessing/ShaderPass.js'
+import { SMAAPass } from '/js/graphics/postprocessing/SMAAPass.js'
+import { FXAAShader } from '/js/graphics/postprocessing/shaders/FXAAShader.js'
+import PointerLockInput from '/js/input/pointerlock.module.js'
+import KeyboardInput from '/js/input/keyboard.module.js'
+import VirtualJoystickInput from '/js/input/virtual-joystick.module.js'
+import VirtualJumpBtnInput from '/js/input/virtual-jumpbtn.module.js'
+// import VirtualCrouchBtnInput from '/js/input/virtual-crouchbtn.module.js'
+import TouchInput from '/js/input/touch.module.js'
+import GamepadInput from '/js/input/gamepad.module.js'
+import {
+  GameInput,
+  processInputs,
+  collectInputsIntoSimulation,
+} from '/js/input/game-input.module.js'
+import { Sim } from '/js/levels/0/Sim.module.js'
+import {
+  randomIntFromZero,
+  bindAssistiveDeviceAnnouncer,
+  isInDebugMode,
+} from '/js/misc/utils.module.js'
+import {
+  promiseLoadAudioBuffer,
+  promiseLoadGltf,
+  promiseParseGltf,
+} from '/js/graphics/three-ext/utils.module.js'
+import SkyDome from '/js/graphics/prefabs/skydome.module.js'
+import Sun from '/js/graphics/prefabs/sun.module.js'
+import Stats from '/js/debug/stats.module.js'
+import GUI from '/js/debug/lil-gui.module.js'
+import { toggleModal, modalWithId } from '/js/components/modal.module.js'
+
+const loadingContainer = document.getElementById('loading-container')
+const sceneContainer = document.getElementById('scene-container')
+const sceneCanvas = document.getElementById('scene-canvas')
+
+const adAnnounce = bindAssistiveDeviceAnnouncer(
+  document.getElementById('ad-announcer')
+)
+adAnnounce(loadingContainer.innerText)
+
+const simulation = await Sim.fromWasmBinary('/wasm/levels/0/sim.wasm')
+
+const assetsToLoad = [
+  simulation,
+  // Visuals
+  promiseParseGltf(simulation.getSceneGltfBytes()),
+  promiseLoadGltf('/gltf/player/player-camera.glb'),
+  promiseParseGltf(simulation.getPlayerGltfBytes()),
+  // Audio
+  promiseLoadAudioBuffer('/audio/player/footstep.mp3'),
+  promiseLoadAudioBuffer('/audio/player/jump.mp3'),
+  promiseLoadAudioBuffer('/audio/player/slide.mp3'),
+]
+
+// Load all assets and then we're ready to load the scene
+Promise.all(assetsToLoad)
+  .then(
+    ([
+      sim,
+      // Visuals
+      sceneGltf,
+      animatedCameraGltf,
+      playerModelGltf,
+      // Audio
+      footstepAudioBuffer,
+      jumpAudioBuffer,
+      slideAudioBuffer,
+    ]) => {
+      loadingContainer.remove()
+      sceneContainer.classList.remove('hidden')
+
+      const perfStatistics = new Stats()
+      document.body.appendChild(perfStatistics.dom)
+
+      // Settings values
+      const masterVolumeSlider = document.getElementById('master-volume-slider')
+      const horizSensSlider = document.getElementById('horiz-sens-slider')
+      const vertSensSlider = document.getElementById('vert-sens-slider')
+      const perfStatsCheckbox = document.getElementById('perf-stats-toggle')
+      const debugToolsCheckbox = document.getElementById('debug-tools-toggle')
+
+      if (!isInDebugMode()) {
+        for (const debugSettingLabel of Array.from(
+          document.querySelectorAll('label[for][data-debug]')
+        )) {
+          const debugInputId = debugSettingLabel.htmlFor
+          if (!debugInputId) {
+            continue
+          }
+          const debugInput = document.getElementById(debugInputId)
+          debugInput.style.display = 'none'
+          debugSettingLabel.style.display = 'none'
+        }
+      }
+
+      const settings = {
+        sim: {
+          leftRightLookSensitivity: parseInt(horizSensSlider.value),
+          upDownLookSensitivity: parseInt(vertSensSlider.value),
+        },
+        interface: {
+          masterVolume: parseFloat(masterVolumeSlider.value) / 100,
+          perfStatisticsEnabled: perfStatsCheckbox.checked,
+          debugToolsEnabled: debugToolsCheckbox.checked,
+        },
+      }
+      sim.setLeftRightLookSensitivity(settings.sim.leftRightLookSensitivity)
+      sim.setUpDownLookSensitivity(settings.sim.upDownLookSensitivity)
+      if (settings.interface.perfStatisticsEnabled) {
+        perfStatistics.showPanel()
+      }
+
+      masterVolumeSlider.addEventListener('change', (e) => {
+        settings.interface.masterVolume = parseFloat(e.target.value) / 100
+      })
+
+      horizSensSlider.addEventListener('change', (e) => {
+        sim.setLeftRightLookSensitivity(parseInt(e.target.value))
+      })
+
+      vertSensSlider.addEventListener('change', (e) => {
+        sim.setUpDownLookSensitivity(parseInt(e.target.value))
+      })
+
+      perfStatsCheckbox.addEventListener('change', (e) => {
+        const checked = e.currentTarget.checked
+        settings.interface.perfStatisticsEnabled = checked
+
+        if (checked) {
+          perfStatistics.showPanel()
+        } else {
+          perfStatistics.hideAllPanels()
+        }
+      })
+
+      let debugGui = null
+      debugToolsCheckbox.addEventListener('change', (e) => {
+        const checked = e.currentTarget.checked
+        settings.interface.debugToolsEnabled = checked
+
+        if (checked) {
+          if (debugGui === null) {
+            debugGui = new GUI()
+            debugGui.add(document, 'title')
+          } else {
+            debugGui.show()
+          }
+        } else {
+          debugGui.hide()
+        }
+      })
+
+      const renderer = new WebGLRenderer({
+        canvas: sceneCanvas,
+        antialias: window.devicePixelRatio > 1 ? false : true,
+      })
+
+      renderer.setSize(sceneContainer.clientWidth, sceneContainer.clientHeight)
+      renderer.setPixelRatio(window.devicePixelRatio)
+      renderer.physicallyCorrectLights = true
+      ColorManagement.enabled = true
+      ColorManagement.legacyMode = false
+      renderer.toneMappingExposure = 1
+      renderer.outputEncoding = sRGBEncoding
+      renderer.toneMapping = ACESFilmicToneMapping
+      sceneContainer.append(renderer.domElement)
+
+      // Prepare our scene
+      const mainScene = new Scene()
+
+      // Create our background environment
+      const backgroundEnvironment = new Group()
+      backgroundEnvironment.add(new SkyDome())
+      const sun = new Sun()
+      sun.pivot.rotation.set(Math.PI / 6, 0, 0, 'YXZ')
+      backgroundEnvironment.add(sun)
+      backgroundEnvironment.renderOrder = -Number.MAX_SAFE_INTEGER
+      mainScene.add(backgroundEnvironment)
+
+      const playerHeight = 1.83
+      const playerRadius = 0.4
+      const playerMesh = new Mesh(
+        new CapsuleGeometry(playerRadius, playerHeight - playerRadius * 2),
+        new MeshBasicMaterial({ color: 0xffff00, wireframe: true })
+      )
+      // mainScene.add(playerMesh)
+
+      sceneGltf.scene.traverse((obj) => {
+        if (obj.isMesh && !obj.userData.simSettings.graphics.enabled) {
+          obj.removeFromParent()
+          obj.geometry.dispose()
+          obj.material.dispose()
+          obj = undefined
+        }
+      })
+
+      mainScene.add(sceneGltf.scene)
+      mainScene.add(playerModelGltf.scene)
+
+      const cabinMesh = new Mesh(
+        new BoxGeometry(1, 1, 2),
+        new MeshBasicMaterial({ color: 0x0000ff })
+      )
+      mainScene.add(cabinMesh)
+
+      mainScene.add(new AmbientLight())
+
+      const animatedCamera = animatedCameraGltf.cameras[0]
+      animatedCamera.fov = 35
+      animatedCamera.aspect =
+        sceneContainer.clientWidth / sceneContainer.clientHeight
+      animatedCamera.near = 0.01
+      animatedCamera.far = 1000
+      const cameraRig = new Object3D()
+      cameraRig.add(animatedCameraGltf.scene)
+      mainScene.add(cameraRig)
+
+      const [cameraIdleAnimation, cameraRunningAnimation] =
+        animatedCameraGltf.animations
+
+      const audioListener = new AudioListener()
+      animatedCamera.add(audioListener)
+
+      let isWallRunning = false
+
+      const playerJumpPositionalAudio = new PositionalAudio(
+        audioListener
+      ).setBuffer(jumpAudioBuffer)
+      const playerSlidePositionalAudio = new PositionalAudio(
+        audioListener
+      ).setBuffer(slideAudioBuffer)
+      const playerFootstepPositionalAudio = new PositionalAudio(
+        audioListener
+      ).setBuffer(footstepAudioBuffer)
+      animatedCamera.add(playerJumpPositionalAudio)
+      animatedCamera.add(playerSlidePositionalAudio)
+      animatedCamera.add(playerFootstepPositionalAudio)
+      const playerAudioTracks = new Map([
+        ['JUMP', { track: playerJumpPositionalAudio, detune: [2, 1] }],
+        ['SLIDE', { track: playerSlidePositionalAudio, detune: [4, 2] }],
+        ['STEP', { track: playerFootstepPositionalAudio, detune: [8, 4] }],
+      ])
+      const sceneTracks = new Map([['PLAYER', playerAudioTracks]])
+      const sceneMixers = new Map([
+        [
+          'PLAYER',
+          {
+            mixer: new AnimationMixer(playerModelGltf.scene),
+            clips: playerModelGltf.animations,
+          },
+        ],
+        [
+          'CAMERA',
+          {
+            mixer: new AnimationMixer(animatedCameraGltf.scene),
+            clips: animatedCameraGltf.animations,
+          },
+        ],
+      ])
+
+      sim.events.on('PLAY_AUDIO', (sceneObj, audioName, playbackRate) => {
+        const audioTracks = sceneTracks.get(sceneObj)
+        if (audioTracks) {
+          const audio = audioTracks.get(audioName)
+          if (audio) {
+            const audioTrack = audio.track
+            if (audioTrack.isPlaying) {
+              audioTrack.stop()
+            }
+            if (audio.detune) {
+              audioTrack.detune =
+                100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
+            }
+            audioTrack.play()
+          }
+        }
+      })
+
+      sim.events.on('LOOP_AUDIO', (sceneObj, audioName, playbackRate) => {
+        const audioTracks = sceneTracks.get(sceneObj)
+        if (audioTracks) {
+          const audio = audioTracks.get(audioName)
+          if (audio) {
+            const audioTrack = audio.track
+            if (audioTrack.isPlaying) {
+              audioTrack.stop()
+            }
+            if (audio.detune) {
+              audioTrack.detune =
+                100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
+            }
+            audioTrack.setLoop(true).play()
+          }
+        }
+      })
+
+      sim.events.on('STOP_AUDIO', (sceneObj, audioName) => {
+        const audioTracks = sceneTracks.get(sceneObj)
+        if (audioTracks) {
+          if (audioName === 'WALLRUN') {
+            isWallRunning = false
+          }
+          const audio = audioTracks.get(audioName)
+          if (audio) {
+            const audioTrack = audio.track
+            if (audioTrack.isPlaying) {
+              audioTrack.stop()
+            }
+          }
+        }
+      })
+
+      const ANIM_FADE_DURATION = 0.15
+
+      sim.events.on('LOOP_ANIMATION', (sceneObj, animName, timeScale) => {
+        const detailedMixer = sceneMixers.get(sceneObj)
+        if (detailedMixer) {
+          const anim = detailedMixer.mixer.clipAction(
+            AnimationClip.findByName(detailedMixer.clips, animName).optimize()
+          )
+          if (anim !== null) {
+            anim.timeScale = timeScale
+            anim.reset().fadeIn(ANIM_FADE_DURATION).play()
+          }
+        }
+      })
+
+      sim.events.on('STOP_ANIMATION', (sceneObj, animName) => {
+        const detailedMixer = sceneMixers.get(sceneObj)
+        if (detailedMixer) {
+          const anim = detailedMixer.mixer.clipAction(
+            AnimationClip.findByName(detailedMixer.clips, animName).optimize()
+          )
+          if (anim !== null) {
+            anim.fadeOut(ANIM_FADE_DURATION)
+          }
+        }
+      })
+
+      sim.events.on('AD_ANNOUNCEMENT', (msg) => {
+        adAnnounce(msg)
+      })
+
+      const keyboardInput = new KeyboardInput(document.body)
+      const gamepadInput = new GamepadInput(0)
+      gamepadInput.onConnect(() => {
+        document.querySelectorAll('.hud.input').forEach((hudInputElement) => {
+          hudInputElement.style.display = 'none'
+        })
+      })
+
+      gamepadInput.onDisconnect(() => {
+        document.querySelectorAll('.hud.input').forEach((hudInputElement) => {
+          hudInputElement.style.display = 'block'
+        })
+      })
+
+      // Higher importance inputs should be later in the list
+      const inputs = [
+        new PointerLockInput(document.getElementById('scene-container')),
+        keyboardInput,
+        new VirtualJoystickInput(document.getElementById('virtual-joystick')),
+        new TouchInput(sceneCanvas),
+        new VirtualJumpBtnInput(
+          document.getElementById('virtual-jump-button-container')
+        ),
+        // new VirtualCrouchBtnInput(document.getElementById('virtual-crouch-button-container')),
+        gamepadInput,
+      ]
+      const gameInput = new GameInput()
+
+      document.getElementById('pause-button').addEventListener('click', () => {
+        pauseGame()
+      })
+
+      let gameLoopContext = null
+      let lastTimestamp = null
+      let deltaT = 0
+      let activeCamera = animatedCamera
+
+      const postProcessComposer = new EffectComposer(renderer)
+      postProcessComposer.addPass(new RenderPass(mainScene, activeCamera))
+      postProcessComposer.addPass(
+        new UnrealBloomPass(
+          new Vector2(sceneContainer.offsetWidth, sceneContainer.offsetHeight),
+          0.7,
+          3,
+          0.99
+        )
+      )
+      postProcessComposer.addPass(new ShaderPass(FXAAShader))
+
+      function onGameLoopTick(tFrame) {
+        deltaT = Math.abs(tFrame - lastTimestamp)
+        perfStatistics.begin()
+        if (deltaT < 90 && deltaT !== 0) {
+          const gamepadReady = gamepadInput.ready()
+          const shouldPause =
+            (keyboardInput.ready() && keyboardInput.escapePressed()) ||
+            (gamepadReady && gamepadInput.startBtnPressed())
+          if (shouldPause) {
+            pauseGame()
+            return
+          }
+
+          processInputs(inputs, gameInput)
+          collectInputsIntoSimulation(gameInput, sim)
+
+          const deltaSeconds = deltaT / 1000
+          sim.step(deltaSeconds)
+
+          for (const detailedMixer of sceneMixers.values()) {
+            detailedMixer.mixer.update(deltaSeconds)
+          }
+
+          sceneGltf.scene.traverse((obj) => {
+            if (obj.isMesh && !obj.userData.simSettings.physics.isAnonymous) {
+              const propName = obj.userData.name
+              const [propRot, propTrans] = sim.propIsometry(propName)
+              obj.position.fromArray(propTrans)
+              obj.quaternion.fromArray(propRot)
+            }
+          })
+
+          const [camGlobalRotation, camGlobalTranslation] =
+            sim.cameraGlobalIsometry()
+          cameraRig.position.fromArray(camGlobalTranslation)
+          cameraRig.quaternion.fromArray(camGlobalRotation)
+
+          const [playerRotation, playerTranslation] = sim.playerBodyIsometry()
+          playerMesh.position.fromArray(playerTranslation)
+          playerMesh.quaternion.fromArray(playerRotation)
+          playerModelGltf.scene.position.fromArray(playerTranslation)
+          playerModelGltf.scene.quaternion.fromArray(playerRotation)
+
+          const [cabinRotation, cabinTranslation] = sim.carCabinIsometry()
+          cabinMesh.position.fromArray(cabinTranslation)
+          cabinMesh.quaternion.fromArray(cabinRotation)
+
+          // Make sure the background environment follows the camera. We don't have to worry
+          // about it occluding anything because every object in it has a low render order
+          // and material depth test turned off
+          activeCamera.getWorldPosition(backgroundEnvironment.position)
+
+          postProcessComposer.render(deltaSeconds)
+        }
+        perfStatistics.end()
+        lastTimestamp = tFrame
+        gameLoopContext = window.requestAnimationFrame(onGameLoopTick)
+      }
+
+      function startGameplay() {
+        audioListener.context.resume()
+        sceneCanvas.focus()
+        adAnnounce('Gameplay started')
+
+        // Somehow this subtraction prevents abortions on gameplay resume
+        // Using 45 because it's equidistant between 30fps (on lower end devices)
+        // and 60 fps
+        lastTimestamp = window.performance.now()
+        onGameLoopTick(window.performance.now())
+      }
+
+      function stopGameplay() {
+        window.cancelAnimationFrame(gameLoopContext)
+        adAnnounce('Gameplay stopped')
+      }
+
+      function resetCameraProjection() {
+        const aspect = window.innerWidth / window.innerHeight
+        activeCamera.aspect = aspect
+        activeCamera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+      }
+      window.addEventListener('resize', resetCameraProjection, false)
+
+      function pauseGame() {
+        stopGameplay()
+        toggleModal(modalWithId('pause-modal'))
+        adAnnounce('Pause menu opened')
+      }
+
+      function resumeGame() {
+        toggleModal(modalWithId('pause-modal'))
+        startGameplay()
+      }
+
+      function resetGame() {
+        sim.reset()
+        adAnnounce('Game reset')
+      }
+
+      document.body.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          pauseGame()
+        }
+      })
+
+      document
+        .getElementById('resume-game-button')
+        .addEventListener('click', () => {
+          resumeGame()
+        })
+
+      document
+        .getElementById('restart-level-button')
+        .addEventListener('click', (e) => {
+          toggleModal(modalWithId('pause-modal'))
+          toggleModal(modalWithId('restart-level-conf-modal'))
+        })
+
+      document
+        .getElementById('restart-level-conf-button')
+        .addEventListener('click', (e) => {
+          toggleModal(modalWithId('restart-level-conf-modal'))
+          resetGame()
+          startGameplay()
+        })
+
+      document
+        .getElementById('restart-level-deny-button')
+        .addEventListener('click', (e) => {
+          toggleModal(modalWithId('restart-level-conf-modal'))
+          toggleModal(modalWithId('pause-modal'))
+        })
+
+      document
+        .getElementById('settings-button')
+        .addEventListener('click', () => {
+          toggleModal(modalWithId('pause-modal'))
+          toggleModal(modalWithId('settings-modal'))
+        })
+
+      document
+        .getElementById('settings-back-button')
+        .addEventListener('click', () => {
+          toggleModal(modalWithId('settings-modal'))
+          toggleModal(modalWithId('pause-modal'))
+        })
+
+      document
+        .getElementById('quit-game-button')
+        .addEventListener('click', () => {
+          window.location.href = '/'
+        })
+
+      let levelStarted = false
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState !== 'visible' && levelStarted) {
+          pauseGame()
+        }
+      })
+
+      sim.initialize()
+      renderer.compile(mainScene, activeCamera)
+      toggleModal(modalWithId('intro-modal'))
+      const startBtn = document.getElementById('start-game-button')
+      startBtn.addEventListener('click', () => {
+        resetCameraProjection()
+        startGameplay()
+        toggleModal(modalWithId('intro-modal'))
+        levelStarted = true
+      })
+      adAnnounce('Loading complete')
+    }
+  )
+  .catch((e) => {
+    console.error(e)
+    toggleModal(modalWithId('error-modal'))
+  })

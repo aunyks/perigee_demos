@@ -100,46 +100,52 @@ dialog {
   backdrop-filter: blur(3px) !important;
 }
 
-dialog article {
+dialog > .container {
   min-width: 20rem;
   max-height: 60vh;
   overflow-y: scroll;
+  margin: var(--block-spacing-vertical) 0;
+  padding: var(--block-spacing-vertical) var(--block-spacing-horizontal);
+  overflow: hidden;
+  border-radius: var(--border-radius);
+  background: var(--card-background-color);
+  box-shadow: var(--card-box-shadow);
 }
 
 @media (min-width: 576px) {
-  dialog article {
+  dialog > .container {
     max-width: 510px;
   }
 }
 
 @media (min-width: 768px) {
-  dialog article {
+  dialog > .container {
     max-width: 700px;
   }
 }
-dialog article > header,
-dialog article > footer {
+dialog > .container > header,
+dialog > .container > footer {
   padding: calc(var(--block-spacing-vertical) * 0.5)
     var(--block-spacing-horizontal);
 }
-dialog article > header .close {
+dialog > .container > header .close {
   margin: 0;
   margin-left: var(--spacing);
   float: right;
 }
-dialog article > footer {
+dialog > .container > footer {
   text-align: right;
 }
-dialog article > footer [role='button'] {
+dialog > .container > footer [role='button'] {
   margin-bottom: 0;
 }
-dialog article > footer [role='button']:not(:first-of-type) {
+dialog > .container > footer [role='button']:not(:first-of-type) {
   margin-left: calc(var(--spacing) * 0.5);
 }
-dialog article p:last-of-type {
+dialog > .container p:last-of-type {
   margin: 0;
 }
-dialog article .close {
+dialog > .container .close {
   display: block;
   width: 1rem;
   height: 1rem;
@@ -153,9 +159,9 @@ dialog article .close {
   opacity: 0.5;
   transition: opacity var(--transition);
 }
-dialog article .close:hover,
-dialog article .close:active,
-dialog article .close:focus {
+dialog > .container .close:hover,
+dialog > .container .close:active,
+dialog > .container .close:focus {
   opacity: 1;
 }
 dialog:not([open]),
@@ -163,7 +169,7 @@ dialog[open='false'] {
   display: none;
 }
 
-dialog article > h1, h2, h3 {
+dialog > .container > h1, h2, h3 {
   margin-bottom: 0.5rem;
 }
 
@@ -177,9 +183,9 @@ dialog article > h1, h2, h3 {
 }
 
 .modal-is-opening dialog,
-.modal-is-opening dialog > article,
+.modal-is-opening dialog > .container,
 .modal-is-closing dialog,
-.modal-is-closing dialog > article {
+.modal-is-closing dialog > .container {
   -webkit-animation-duration: 0.2s;
   animation-duration: 0.2s;
   -webkit-animation-timing-function: ease-in-out;
@@ -195,12 +201,12 @@ dialog article > h1, h2, h3 {
   animation-name: fadeIn;
 }
 
-dialog > article {
+dialog > .container {
   animation-name: slideUp;
 }
 
 .modal-is-closing dialog,
-.modal-is-closing dialog > article {
+.modal-is-closing dialog > .container {
   animation-direction: reverse;
 }
 

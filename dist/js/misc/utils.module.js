@@ -25,4 +25,8 @@ function bindAssistiveDeviceAnnouncer(announcerElem) {
 
 function noop() {}
 
-export { randomIntFromZero, bindAssistiveDeviceAnnouncer, noop }
+function isInDebugMode() {
+  return !!new URLSearchParams(document.location.search).get('debug')
+}
+
+export { randomIntFromZero, bindAssistiveDeviceAnnouncer, noop, isInDebugMode }
