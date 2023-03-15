@@ -175,10 +175,10 @@ impl CharacterController {
     /// steps and the `CharacterController`'s events are extracted this frame.
     pub fn update(
         &mut self,
-        delta_seconds: f32,
-        input: &Input,
         settings: &GameSettings,
         physics: &mut PhysicsWorld,
+        input: &Input,
+        delta_seconds: f32,
     ) {
         self.update_body_isometry(&mut physics.rigid_body_set);
         self.update_head_isometry(delta_seconds);

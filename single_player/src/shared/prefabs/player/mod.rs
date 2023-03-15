@@ -97,7 +97,7 @@ impl Player {
         let previous_tick_movement_state = *self.movement_state.current_state();
 
         self.controller
-            .update(delta_seconds, input, settings, physics);
+            .update(settings, physics, input, delta_seconds);
 
         self.determine_movement_state(&mut physics.rigid_body_set);
 
