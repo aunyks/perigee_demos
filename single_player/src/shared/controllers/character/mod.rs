@@ -8,15 +8,12 @@ use crate::shared::settings::GameSettings;
 use crate::shared::vectors::*;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::rc::Rc;
 use std::time::Duration;
 
 pub mod utils;
 
 #[derive(Serialize, Deserialize)]
 pub struct CharacterController {
-    #[serde(skip)]
-    config: Rc<CharacterControllerConfig>,
     // Head up down rotation
     head_x_rotation: UnitQuaternion<f32>,
     // Head tilt rotation
@@ -42,10 +39,9 @@ pub struct CharacterController {
 }
 
 impl FromConfig for CharacterController {
-    type Config<'a> = &'a Rc<CharacterControllerConfig>;
+    type Config<'a> = &'a CharacterControllerConfig;
     fn from_config<'a>(config: Self::Config<'a>) -> Self {
         Self {
-            config: Rc::clone(config),
             head_x_rotation: UnitQuaternion::identity(),
             head_z_rotation: UnitQuaternion::identity(),
             head_isometry: Isometry::from(Vector3::from(config.standing_head_translation_offset)),
@@ -82,10 +78,6 @@ impl FromConfig for CharacterController {
             event_channel: EventChannel::with_capacity(config.event_queue_capacity),
         }
     }
-
-    fn set_config<'a>(&mut self, config: Self::Config<'a>) {
-        self.config = Rc::clone(config);
-    }
 }
 
 impl CharacterController {
@@ -93,7 +85,12 @@ impl CharacterController {
         self.event_channel.get_message()
     }
 
-    fn build_collider(&self, capsule_half_height: f32, capsule_radius: f32) -> Collider {
+    fn build_collider(
+        &self,
+        config: &CharacterControllerConfig,
+        capsule_half_height: f32,
+        capsule_radius: f32,
+    ) -> Collider {
         ColliderBuilder::capsule_y(capsule_half_height, capsule_radius)
             .collision_groups(
                 InteractionGroups::all().with_memberships(Group::from_bits_truncate(
@@ -104,19 +101,19 @@ impl CharacterController {
             // this collider
             .active_events(ActiveEvents::COLLISION_EVENTS)
             // Set the mass (in kg, I think) of the collider
-            .density(self.config.mass)
+            .density(config.mass)
             .build()
     }
 
-    pub fn capsule_values(&self) -> (f32, f32) {
+    pub fn capsule_values(&self, config: &CharacterControllerConfig) -> (f32, f32) {
         match self.crouch_state.current_state() {
             CrouchState::Upright => (
-                self.config.capsule_standing_half_height(),
-                self.config.capsule_standing_radius,
+                config.capsule_standing_half_height(),
+                config.capsule_standing_radius,
             ),
             CrouchState::Crouched => (
-                self.config.capsule_crouched_half_height(),
-                self.config.capsule_crouched_radius,
+                config.capsule_crouched_half_height(),
+                config.capsule_crouched_radius,
             ),
         }
     }
@@ -139,6 +136,7 @@ impl CharacterController {
     /// This should be called after creating the character controller and before updating the character controller.
     pub fn add_to_physics_world(
         &mut self,
+        config: &CharacterControllerConfig,
         rigid_body_set: &mut RigidBodySet,
         collider_set: &mut ColliderSet,
         initial_isometry: Option<Isometry<f32, UnitQuaternion<f32>, 3>>,
@@ -159,8 +157,8 @@ impl CharacterController {
             .angular_damping(1000.0)
             .linear_damping(0.2)
             .build();
-        let (capsule_half_height, capsule_radius) = self.capsule_values();
-        let collider = self.build_collider(capsule_half_height, capsule_radius);
+        let (capsule_half_height, capsule_radius) = self.capsule_values(config);
+        let collider = self.build_collider(config, capsule_half_height, capsule_radius);
 
         let player_body_handle = rigid_body_set.insert(rigid_body);
         let player_body_collider =
@@ -175,13 +173,14 @@ impl CharacterController {
     /// steps and the `CharacterController`'s events are extracted this frame.
     pub fn update(
         &mut self,
+        config: &CharacterControllerConfig,
         settings: &GameSettings,
         physics: &mut PhysicsWorld,
         input: &Input,
         delta_seconds: f32,
     ) {
         self.update_body_isometry(&mut physics.rigid_body_set);
-        self.update_head_isometry(delta_seconds);
+        self.update_head_isometry(config, delta_seconds);
 
         if self.perspective_mode.is_third_person() {
             self.update_boom_isometry(
@@ -189,17 +188,17 @@ impl CharacterController {
                     * (2.5 * f32::from(settings.left_right_look_sensitivity()) / 5.0).to_radians(),
                 input.rotate_up()
                     * (5.0 * f32::from(settings.up_down_look_sensitivity()) / 5.0).to_radians(),
-                self.config.max_look_up_angle,
-                self.config.min_look_up_angle,
+                config.max_look_up_angle,
+                config.min_look_up_angle,
             );
         }
 
         if self.perspective_mode == PerspectiveMode::FirstPerson
             || (self.perspective_mode == PerspectiveMode::ThirdPersonCombat
-                && self.body_linear_velocity().magnitude()
-                    > self.config.nonstationary_speed_threshold)
+                && self.body_linear_velocity().magnitude() > config.nonstationary_speed_threshold)
         {
             self.rotate_body(
+                config,
                 -input.rotate_right()
                     * (2.5 * f32::from(settings.left_right_look_sensitivity()) / 5.0).to_radians(),
                 &mut physics.rigid_body_set,
@@ -209,14 +208,15 @@ impl CharacterController {
                 self.rotate_head(
                     input.rotate_up()
                         * (5.0 * f32::from(settings.up_down_look_sensitivity()) / 5.0).to_radians(),
-                    self.config.max_look_up_angle,
-                    self.config.min_look_up_angle,
+                    config.max_look_up_angle,
+                    config.min_look_up_angle,
                 );
             }
         }
 
         if self.is_grounded() && self.perspective_mode == PerspectiveMode::ThirdPersonBasic {
             self.face_body_in_moving_direction(
+                config,
                 input.move_right(),
                 input.move_forward(),
                 &mut physics.rigid_body_set,
@@ -224,16 +224,18 @@ impl CharacterController {
             );
         }
 
-        let (_capsule_half_height, capsule_radius) = self.capsule_values();
+        let (_capsule_half_height, capsule_radius) = self.capsule_values(config);
 
         let previous_tick_grounded_state = self.is_grounded();
         self.determine_grounded_states(
+            config,
             &mut physics.rigid_body_set,
             &mut physics.query_pipeline,
             &mut physics.collider_set,
         );
         let previous_tick_wallrunning_state = *self.wallrunning_state.current_state();
         self.determine_wallrunning_state(
+            config,
             &mut physics.rigid_body_set,
             capsule_radius,
             &mut physics.query_pipeline,
@@ -241,7 +243,7 @@ impl CharacterController {
         );
         self.determine_linear_velocity(&mut physics.rigid_body_set);
         let previous_tick_sliding_state = *self.sliding_state.current_state();
-        self.determine_sliding_state();
+        self.determine_sliding_state(config);
 
         if previous_tick_grounded_state != self.is_grounded() {
             // We've just landed
@@ -262,7 +264,7 @@ impl CharacterController {
         if previous_tick_wallrunning_state != *self.wallrunning_state.current_state() {
             // We're entered a new wallrun
             if self.wallrunning_state != WallRunning::None && !self.is_grounded() {
-                self.start_wallrunning(&mut physics.rigid_body_set);
+                self.start_wallrunning(config, &mut physics.rigid_body_set);
                 self.event_channel
                     .send(CharacterControllerEvent::StartedWallRunning);
                 self.coyote_timer.reset();
@@ -273,11 +275,11 @@ impl CharacterController {
                     .send(CharacterControllerEvent::StoppedWallRunning);
             }
         }
-        self.tilt_head(delta_seconds);
+        self.tilt_head(config, delta_seconds);
 
         if previous_tick_sliding_state != *self.sliding_state.current_state() {
             if self.sliding_state.current_state() != &SlidingState::None {
-                self.start_sliding(&mut physics.rigid_body_set);
+                self.start_sliding(config, &mut physics.rigid_body_set);
                 self.event_channel
                     .send(CharacterControllerEvent::StartedSliding);
             } else {
@@ -293,8 +295,8 @@ impl CharacterController {
 
         self.jump_cooldown_timer.tick(delta_seconds);
         let max_jump_cooldown_timer_duration = match self.crouch_state.current_state() {
-            CrouchState::Upright => self.config.min_jump_standing_cooldown_duration,
-            CrouchState::Crouched => self.config.min_jump_crouched_cooldown_duration,
+            CrouchState::Upright => config.min_jump_standing_cooldown_duration,
+            CrouchState::Crouched => config.min_jump_crouched_cooldown_duration,
         };
         if !self.is_grounded() && self.wallrunning_state == WallRunning::None {
             self.coyote_timer.tick(delta_seconds);
@@ -306,12 +308,14 @@ impl CharacterController {
         {
             match self.movement_mode.current_state() {
                 MovementMode::Continuous => self.move_body_continuous(
+                    config,
                     delta_seconds,
                     input.move_right(),
                     input.move_forward(),
                     &mut physics.rigid_body_set,
                 ),
                 MovementMode::Discrete => self.move_body_discrete(
+                    config,
                     delta_seconds,
                     input.move_right(),
                     input.move_forward(),
@@ -326,21 +330,22 @@ impl CharacterController {
             let is_grounded_or_wallrunning =
                 self.wallrunning_state != WallRunning::None || self.is_grounded();
             let can_coyote_jump = self.coyote_timer.elapsed()
-                < Duration::from_secs_f32(self.config.max_jump_coyote_duration);
+                < Duration::from_secs_f32(config.max_jump_coyote_duration);
 
             if jump_has_cooled_down
                 && (is_grounded_or_wallrunning || can_coyote_jump)
                 && self.sliding_state.current_state() != &SlidingState::Normal
             {
-                self.jump(&mut physics.rigid_body_set);
+                self.jump(config, &mut physics.rigid_body_set);
             }
         }
 
         match (input.crouch(), self.crouch_state.current_state()) {
             (true, &CrouchState::Upright) => {
                 self.change_crouch_state(
-                    self.config.capsule_crouched_half_height(),
-                    self.config.capsule_crouched_radius,
+                    config,
+                    config.capsule_crouched_half_height(),
+                    config.capsule_crouched_radius,
                     &mut physics.rigid_body_set,
                     &mut physics.collider_set,
                     &mut physics.island_manager,
@@ -348,22 +353,23 @@ impl CharacterController {
                 // If we're moving fast enough, then this is a slide.
                 // Otherwise it's a normal crouch
                 if self.body_linear_velocity().xz().magnitude()
-                    < self.config.sliding_speed_factor
-                        * self.config.max_standing_move_speed_continuous
+                    < config.sliding_speed_factor * config.max_standing_move_speed_continuous
                 {
                     self.event_channel.send(CharacterControllerEvent::Crouched);
                 }
             }
             (false, &CrouchState::Crouched) => {
                 if self.can_stand_up(
+                    config,
                     &mut physics.rigid_body_set,
                     &mut physics.query_pipeline,
                     &mut physics.collider_set,
                     self.is_grounded(),
                 ) {
                     self.change_crouch_state(
-                        self.config.capsule_standing_half_height(),
-                        self.config.capsule_standing_radius,
+                        config,
+                        config.capsule_standing_half_height(),
+                        config.capsule_standing_radius,
                         &mut physics.rigid_body_set,
                         &mut physics.collider_set,
                         &mut physics.island_manager,
@@ -375,13 +381,13 @@ impl CharacterController {
             _ => {}
         }
 
-        self.aim(input.aim(), delta_seconds);
+        self.aim(config, input.aim(), delta_seconds);
 
         if self.perspective_mode.is_third_person() {
             let max_boom_arm_length = if input.aim() {
-                self.config.aim_boom_arm_length
+                config.aim_boom_arm_length
             } else {
-                self.config.default_boom_arm_length
+                config.default_boom_arm_length
             };
             self.prevent_camera_obstructions(
                 &mut physics.query_pipeline,
@@ -401,13 +407,13 @@ impl CharacterController {
         self.body_isometry = body_isometry;
     }
 
-    fn update_head_isometry(&mut self, delta_seconds: f32) {
+    fn update_head_isometry(&mut self, config: &CharacterControllerConfig, delta_seconds: f32) {
         let target_translation = match self.crouch_state.current_state() {
-            CrouchState::Upright => self.head_standing_isometry().translation.vector,
-            CrouchState::Crouched => self.head_crouched_isometry().translation.vector,
+            CrouchState::Upright => self.head_standing_isometry(config).translation.vector,
+            CrouchState::Crouched => self.head_crouched_isometry(config).translation.vector,
         };
         let lerp_factor = if self.is_grounded() {
-            self.config.head_crouch_lerp_factor
+            config.head_crouch_lerp_factor
         } else {
             1.0
         };
@@ -447,7 +453,7 @@ impl CharacterController {
         );
     }
 
-    fn aim(&mut self, is_aiming: bool, delta_seconds: f32) {
+    fn aim(&mut self, config: &CharacterControllerConfig, is_aiming: bool, delta_seconds: f32) {
         if self.perspective_mode.is_third_person() {
             let target_boom = if is_aiming {
                 self.perspective_mode
@@ -461,7 +467,7 @@ impl CharacterController {
 
             self.boom.lerp_mut(
                 &target_boom,
-                framerate_independent_interp_t(self.config.boom_lerp_factor, delta_seconds),
+                framerate_independent_interp_t(config.boom_lerp_factor, delta_seconds),
             );
         }
     }
@@ -469,6 +475,7 @@ impl CharacterController {
     /// Rotate the character controller's rigid body about the Y axis (left / right) based on user input.
     pub fn rotate_body(
         &self,
+        config: &CharacterControllerConfig,
         y_axis_rotation: f32,
         rigid_body_set: &mut RigidBodySet,
         delta_seconds: f32,
@@ -500,7 +507,7 @@ impl CharacterController {
                         .try_lerp_slerp(
                             &boom_yaw_isometry,
                             framerate_independent_interp_t(
-                                self.config.tpcombat_boom_rotation_lerp_factor,
+                                config.tpcombat_boom_rotation_lerp_factor,
                                 delta_seconds,
                             ),
                             0.0,
@@ -527,6 +534,7 @@ impl CharacterController {
 
     fn face_body_in_moving_direction(
         &mut self,
+        config: &CharacterControllerConfig,
         left_right_magnitude: f32,
         forward_back_magnitude: f32,
         rigid_body_set: &mut RigidBodySet,
@@ -545,7 +553,7 @@ impl CharacterController {
                 let new_body_rotation = match body_iso.rotation.try_slerp(
                     &UnitQuaternion::face_towards(&-move_direction, &Vector3::y_axis()),
                     framerate_independent_interp_t(
-                        self.config.rotate_body_to_movement_dir_lerp_factor,
+                        config.rotate_body_to_movement_dir_lerp_factor,
                         delta_seconds,
                     ),
                     0.01,
@@ -618,16 +626,22 @@ impl CharacterController {
         self.head_x_rotation * self.head_z_rotation
     }
 
-    pub fn head_standing_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn head_standing_isometry(
+        &self,
+        config: &CharacterControllerConfig,
+    ) -> Isometry<f32, UnitQuaternion<f32>, 3> {
         Isometry::from_parts(
-            self.config.standing_head_translation_offset.into(),
+            config.standing_head_translation_offset.into(),
             self.head_rotation(),
         )
     }
 
-    pub fn head_crouched_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn head_crouched_isometry(
+        &self,
+        config: &CharacterControllerConfig,
+    ) -> Isometry<f32, UnitQuaternion<f32>, 3> {
         Isometry::from_parts(
-            self.config.crouched_head_translation_offset.into(),
+            config.crouched_head_translation_offset.into(),
             self.head_rotation(),
         )
     }
@@ -696,18 +710,19 @@ impl CharacterController {
     /// Move the character controller rigid body laterally (in the X-Z direction) based on user input.
     fn move_body_continuous(
         &mut self,
+        config: &CharacterControllerConfig,
         delta_seconds: f32,
         left_right_magnitude: f32,
         forward_back_magnitude: f32,
         rigid_body_set: &mut RigidBodySet,
     ) {
         let max_move_speed = match self.crouch_state.current_state() {
-            CrouchState::Upright => self.config.max_standing_move_speed_continuous,
-            CrouchState::Crouched => self.config.max_crouched_move_speed_continuous,
+            CrouchState::Upright => config.max_standing_move_speed_continuous,
+            CrouchState::Crouched => config.max_crouched_move_speed_continuous,
         };
         let max_move_acceleration = match self.crouch_state.current_state() {
-            CrouchState::Upright => self.config.max_standing_move_acceleration_continuous,
-            CrouchState::Crouched => self.config.max_crouched_move_acceleration_continuous,
+            CrouchState::Upright => config.max_standing_move_acceleration_continuous,
+            CrouchState::Crouched => config.max_crouched_move_acceleration_continuous,
         };
         let movement_vector = Vector3::new(left_right_magnitude, 0.0, forward_back_magnitude);
         let trying_to_move = movement_vector.magnitude() > 0.0;
@@ -728,6 +743,7 @@ impl CharacterController {
 
     fn move_body_discrete(
         &mut self,
+        config: &CharacterControllerConfig,
         delta_seconds: f32,
         left_right_magnitude: f32,
         forward_back_magnitude: f32,
@@ -744,37 +760,37 @@ impl CharacterController {
             PerspectiveMode::FirstPerson | PerspectiveMode::ThirdPersonBasic => true,
             PerspectiveMode::ThirdPersonCombat => {
                 capped_movement_vector.angle(&FORWARD_VECTOR).to_degrees()
-                    <= self.config.max_sprint_forward_angle_threshold_discrete
+                    <= config.max_sprint_forward_angle_threshold_discrete
             }
         };
         let movement_mag = capped_movement_vector.magnitude();
         let move_speed = match self.crouch_state.current_state() {
             CrouchState::Upright => {
                 if is_moving_forward {
-                    if movement_mag >= self.config.standing_sprint_input_threshold {
-                        self.config.standing_sprint_speed_discrete
-                    } else if movement_mag >= self.config.standing_run_input_threshold {
-                        self.config.standing_run_speed_discrete
+                    if movement_mag >= config.standing_sprint_input_threshold {
+                        config.standing_sprint_speed_discrete
+                    } else if movement_mag >= config.standing_run_input_threshold {
+                        config.standing_run_speed_discrete
                     } else {
-                        self.config.standing_walk_speed_discrete
+                        config.standing_walk_speed_discrete
                     }
                 } else {
-                    self.config.standing_walk_speed_discrete
+                    config.standing_walk_speed_discrete
                 }
             }
-            CrouchState::Crouched => self.config.crouched_creep_speed_discrete,
+            CrouchState::Crouched => config.crouched_creep_speed_discrete,
         };
         let move_acceleration = match self.crouch_state.current_state() {
             CrouchState::Upright => {
-                if is_moving_forward && movement_mag > self.config.standing_sprint_input_threshold {
-                    self.config.standing_sprint_acceleration_discrete
-                } else if movement_mag > self.config.standing_run_input_threshold {
-                    self.config.standing_run_acceleration_discrete
+                if is_moving_forward && movement_mag > config.standing_sprint_input_threshold {
+                    config.standing_sprint_acceleration_discrete
+                } else if movement_mag > config.standing_run_input_threshold {
+                    config.standing_run_acceleration_discrete
                 } else {
-                    self.config.standing_walk_acceleration_discrete
+                    config.standing_walk_acceleration_discrete
                 }
             }
-            CrouchState::Crouched => self.config.crouched_creep_acceleration_discrete,
+            CrouchState::Crouched => config.crouched_creep_acceleration_discrete,
         };
 
         self.move_body(
@@ -785,23 +801,28 @@ impl CharacterController {
         );
     }
 
-    fn jump(&mut self, rigid_body_set: &mut RigidBodySet) {
+    fn jump(&mut self, config: &CharacterControllerConfig, rigid_body_set: &mut RigidBodySet) {
         let jump_acceleration = match self.crouch_state.current_state() {
-            CrouchState::Upright => self.config.jump_standing_acceleration,
+            CrouchState::Upright => config.jump_standing_acceleration,
             CrouchState::Crouched => match self.sliding_state.current_state() {
-                SlidingState::None => self.config.jump_crouched_acceleration,
+                SlidingState::None => config.jump_crouched_acceleration,
                 SlidingState::Normal => 0.0,
-                SlidingState::Downhill => self.config.jump_standing_acceleration,
+                SlidingState::Downhill => config.jump_standing_acceleration,
             },
         };
-        self.jump_body(jump_acceleration, rigid_body_set);
+        self.jump_body(config, jump_acceleration, rigid_body_set);
         self.event_channel.send(CharacterControllerEvent::Jump);
         self.jump_cooldown_timer.reset();
     }
 
     /// Make the character controller's rigid body jump. If the character controller is wallrunning, it will jump on the
     /// opposite direction of the wall it's running on. If not wallrunning, it will jump straight up.
-    fn jump_body(&mut self, jump_acceleration: f32, rigid_body_set: &mut RigidBodySet) {
+    fn jump_body(
+        &mut self,
+        &config: &CharacterControllerConfig,
+        jump_acceleration: f32,
+        rigid_body_set: &mut RigidBodySet,
+    ) {
         let body_handle = self.body_handle();
         let body_isometry = self.body_isometry();
         // We always wanna jump up and forward
@@ -809,12 +830,12 @@ impl CharacterController {
         // And also away from the wall
         let jump_vector = match self.wallrunning_state.current_state() {
             WallRunning::OnRight(untransformed_wall_normal) => {
-                untransformed_wall_normal * self.config.jump_wallrunning_normal_scale
-                    + untransformed_jump_direction_vector * self.config.jump_wallrunning_scale
+                untransformed_wall_normal * config.jump_wallrunning_normal_scale
+                    + untransformed_jump_direction_vector * config.jump_wallrunning_scale
             }
             WallRunning::OnLeft(untransformed_wall_normal) => {
-                untransformed_wall_normal * self.config.jump_wallrunning_normal_scale
-                    + untransformed_jump_direction_vector * self.config.jump_wallrunning_scale
+                untransformed_wall_normal * config.jump_wallrunning_normal_scale
+                    + untransformed_jump_direction_vector * config.jump_wallrunning_scale
             }
             WallRunning::None => UP_VECTOR,
         } * jump_acceleration;
@@ -829,7 +850,7 @@ impl CharacterController {
                 self.wallrunning_state.current_state(),
                 WallRunning::OnRight(_) | WallRunning::OnLeft(_)
             ) && current_velocity.angle(&DOWN_VECTOR).to_degrees()
-                <= self.config.jump_wallrunning_down_velocity_angle_threshold
+                <= config.jump_wallrunning_down_velocity_angle_threshold
             {
                 body.set_linvel(
                     Vector3::new(current_velocity.x, 0.0, current_velocity.z),
@@ -861,6 +882,7 @@ impl CharacterController {
     /// as ground. Also calculate the normal of this surface.
     fn determine_grounded_states(
         &mut self,
+        config: &CharacterControllerConfig,
         rigid_body_set: &mut RigidBodySet,
         query_pipeline: &mut QueryPipeline,
         collider_set: &mut ColliderSet,
@@ -868,7 +890,7 @@ impl CharacterController {
         let body_handle = self.body_handle();
         let body_isometry = self.body_isometry();
         let query_filter = QueryFilter::new();
-        let (cap_halfheight, cap_radius) = self.capsule_values();
+        let (cap_halfheight, cap_radius) = self.capsule_values(config);
 
         if rigid_body_set.get_mut(body_handle).is_some() {
             if let Some((_, shape_hit)) = query_pipeline.cast_shape(
@@ -877,7 +899,7 @@ impl CharacterController {
                 body_isometry,
                 &DOWN_VECTOR,
                 &Capsule::new_y(cap_halfheight, cap_radius),
-                self.config.ground_ray_length,
+                config.ground_ray_length,
                 true,
                 query_filter.exclude_collider(self.collider_handle()), // query_filter_excluding_player(),
             ) {
@@ -894,6 +916,7 @@ impl CharacterController {
     /// yourself that the character controller isn't already grounded when responding to this state.
     fn determine_wallrunning_state(
         &mut self,
+        config: &CharacterControllerConfig,
         rigid_body_set: &mut RigidBodySet,
         player_radius: f32,
         query_pipeline: &mut QueryPipeline,
@@ -905,7 +928,7 @@ impl CharacterController {
         }
         let body_handle = self.body_handle();
         let body_isometry = self.body_isometry();
-        let ray_distance_from_body = self.config.wallrunning_ray_length;
+        let ray_distance_from_body = config.wallrunning_ray_length;
         let body_linear_velocity = self.body_linear_velocity();
         if rigid_body_set.get(body_handle).is_some() {
             // Can only wallrun if moving forward enough
@@ -913,7 +936,7 @@ impl CharacterController {
             if body_linear_velocity
                 .angle(&transformed_forward_vector)
                 .to_degrees()
-                > self.config.max_wallrunning_forward_angle
+                > config.max_wallrunning_forward_angle
             {
                 self.wallrunning_state.transition_to(WallRunning::None);
                 return;
@@ -959,25 +982,25 @@ impl CharacterController {
         self.wallrunning_state.transition_to(WallRunning::None);
     }
 
-    fn determine_sliding_state(&mut self) {
+    fn determine_sliding_state(&mut self, config: &CharacterControllerConfig) {
         let body_isometry = self.body_isometry();
         if let Some(ground_normal) = self.ground_normal() {
             let planar_forward = project_on_plane(&FORWARD_VECTOR, &ground_normal);
             let on_slope = ground_normal.angle(&UP_VECTOR).to_degrees()
-                <= self.config.endless_slide_ground_normal_max_up_angle;
+                <= config.endless_slide_ground_normal_max_up_angle;
             let moving_downhill = self.body_linear_velocity().angle(&DOWN_VECTOR).to_degrees()
-                <= self.config.endless_slide_downhill_max_down_angle;
+                <= config.endless_slide_downhill_max_down_angle;
 
             let is_sliding = self.crouch_state.current_state() == &CrouchState::Crouched
                 && self
                     .body_linear_velocity
                     .angle(&body_isometry.transform_vector(&planar_forward))
                     .to_degrees()
-                    <= self.config.sliding_max_forward_angle;
+                    <= config.sliding_max_forward_angle;
             let sliding_type = if on_slope && moving_downhill {
                 SlidingState::Downhill
             } else if self.body_linear_velocity().magnitude()
-                >= self.config.sliding_speed_factor * self.config.max_standing_move_speed_continuous
+                >= config.sliding_speed_factor * config.max_standing_move_speed_continuous
             {
                 SlidingState::Normal
             } else {
@@ -995,7 +1018,7 @@ impl CharacterController {
     /// Tilt the head of the character controller about the Z axis based on the current wall running state.
     /// If the character controller is on a wall on the right, tilt the head left. If the wall is on the left, tilt
     /// the head right. If not wall running, don't tilt the head.
-    fn tilt_head(&mut self, delta_seconds: f32) {
+    fn tilt_head(&mut self, config: &CharacterControllerConfig, delta_seconds: f32) {
         let z_axis = Unit::new_normalize(BACK_VECTOR);
         let max_tilt = 10.0f32.to_radians();
         let target_head_z_rotation = if !self.is_grounded() {
@@ -1008,9 +1031,9 @@ impl CharacterController {
             UnitQuaternion::from_axis_angle(&z_axis, 0.0)
         };
         let tilt_speed = if self.wallrunning_state == WallRunning::None {
-            self.config.enter_head_tilt_factor
+            config.enter_head_tilt_factor
         } else {
-            self.config.exit_head_tilt_factor
+            config.exit_head_tilt_factor
         };
         self.head_z_rotation = self
             .head_z_rotation
@@ -1020,22 +1043,26 @@ impl CharacterController {
     /// Determine whether the character controller can stand up by casting a ray straight above the head.
     fn can_stand_up(
         &self,
+        config: &CharacterControllerConfig,
         rigid_body_set: &mut RigidBodySet,
         query_pipeline: &mut QueryPipeline,
         collider_set: &mut ColliderSet,
         is_grounded: bool,
     ) -> bool {
         let standing_collider = self.build_collider(
-            self.config.capsule_standing_half_height(),
-            self.config.capsule_standing_radius,
+            config,
+            config.capsule_standing_half_height(),
+            config.capsule_standing_radius,
         );
         let standing_shape = standing_collider.shape();
         let distance_between_standing_and_crouched_heights =
-            self.config.capsule_standing_total_height - self.config.capsule_crouched_total_height;
+            config.capsule_standing_total_height - config.capsule_crouched_total_height;
         if let Some(body) = rigid_body_set.get(self.body_handle()) {
             let next_body_isometry = body.next_position();
-            let standing_trans = (next_body_isometry * self.head_standing_isometry()).translation;
-            let crouched_trans = (next_body_isometry * self.head_crouched_isometry()).translation;
+            let standing_trans =
+                (next_body_isometry * self.head_standing_isometry(config)).translation;
+            let crouched_trans =
+                (next_body_isometry * self.head_crouched_isometry(config)).translation;
             let mut standing_isometry = *self.body_isometry();
 
             if is_grounded {
@@ -1081,6 +1108,7 @@ impl CharacterController {
     /// Change the size of the character controller collider.
     fn change_crouch_state(
         &mut self,
+        config: &CharacterControllerConfig,
         new_capsule_half_height: f32,
         new_capsule_radius: f32,
         rigid_body_set: &mut RigidBodySet,
@@ -1088,13 +1116,15 @@ impl CharacterController {
         island_manager: &mut IslandManager,
     ) {
         let distance_between_standing_and_crouched_heights =
-            self.config.capsule_standing_total_height - self.config.capsule_crouched_total_height;
+            config.capsule_standing_total_height - config.capsule_crouched_total_height;
 
         if let Some(body) = rigid_body_set.get_mut(self.body_handle()) {
             let next_body_isometry = body.next_position();
             let mut new_pos = *next_body_isometry;
-            let standing_trans = (next_body_isometry * self.head_standing_isometry()).translation;
-            let crouched_trans = (next_body_isometry * self.head_crouched_isometry()).translation;
+            let standing_trans =
+                (next_body_isometry * self.head_standing_isometry(config)).translation;
+            let crouched_trans =
+                (next_body_isometry * self.head_crouched_isometry(config)).translation;
 
             // Toggle crouch state
             self.crouch_state
@@ -1126,7 +1156,8 @@ impl CharacterController {
                         CrouchState::Upright
                     }
                 });
-            let new_collider = self.build_collider(new_capsule_half_height, new_capsule_radius);
+            let new_collider =
+                self.build_collider(config, new_capsule_half_height, new_capsule_radius);
             collider_set.remove(self.collider_handle(), island_manager, rigid_body_set, true);
             self.set_collider_handle(collider_set.insert_with_parent(
                 new_collider,
@@ -1136,14 +1167,18 @@ impl CharacterController {
         }
     }
 
-    fn start_wallrunning(&mut self, rigid_body_set: &mut RigidBodySet) {
+    fn start_wallrunning(
+        &mut self,
+        config: &CharacterControllerConfig,
+        rigid_body_set: &mut RigidBodySet,
+    ) {
         let current_velocity = self.body_linear_velocity();
         if let Some(body) = rigid_body_set.get_mut(self.body_handle()) {
             body.reset_forces(true);
-            body.set_gravity_scale(self.config.start_wallrunning_gravity_scale, true);
+            body.set_gravity_scale(config.start_wallrunning_gravity_scale, true);
             let new_linvel = Vector3::new(
                 current_velocity.x,
-                self.config.start_wallrunning_up_impulse,
+                config.start_wallrunning_up_impulse,
                 current_velocity.z,
             );
             body.set_linvel(new_linvel, true);
@@ -1156,7 +1191,11 @@ impl CharacterController {
         }
     }
 
-    fn start_sliding(&mut self, rigid_body_set: &mut RigidBodySet) {
+    fn start_sliding(
+        &mut self,
+        config: &CharacterControllerConfig,
+        rigid_body_set: &mut RigidBodySet,
+    ) {
         let body_isometry = self.body_isometry();
         if let Some(body) = rigid_body_set.get_mut(self.body_handle()) {
             body.reset_forces(true);
@@ -1164,7 +1203,7 @@ impl CharacterController {
             match *self.sliding_state.current_state() {
                 SlidingState::Downhill => {
                     let planar_endless_sliding_acceleration = project_on_plane(
-                        &self.config.endless_sliding_acceleration.into(),
+                        &config.endless_sliding_acceleration.into(),
                         &self.ground_normal().unwrap(),
                     );
                     let transformed_endless_sliding_acceleration =
@@ -1173,13 +1212,13 @@ impl CharacterController {
                 }
                 SlidingState::Normal => {
                     let planar_sliding_deceleration = project_on_plane(
-                        &self.config.sliding_deceleration.into(),
+                        &config.sliding_deceleration.into(),
                         &self.ground_normal().unwrap(),
                     );
                     let transformed_sliding_deceleration =
                         body_isometry.transform_vector(&planar_sliding_deceleration);
                     let planar_sliding_velocity_increase = project_on_plane(
-                        &self.config.sliding_velocity_increase.into(),
+                        &config.sliding_velocity_increase.into(),
                         &self.ground_normal().as_ref().unwrap(),
                     );
                     let transformed_sliding_velocity_increase =

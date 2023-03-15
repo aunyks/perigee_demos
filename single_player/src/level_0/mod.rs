@@ -87,6 +87,7 @@ impl<'a> Sim<'a> {
         self.pois.load_from_gltf(&scene_gltf).unwrap();
 
         self.player.initialize(
+            &self.config.player,
             &Gltf::from_slice(self.player_gltf_bytes).unwrap(),
             &mut self.physics,
             None,
@@ -94,6 +95,7 @@ impl<'a> Sim<'a> {
         );
 
         self.car.add_to_physics_world(
+            &self.config.car,
             &mut self.physics.rigid_body_set,
             &mut self.physics.collider_set,
             None,
@@ -219,6 +221,7 @@ impl<'a> Sim<'a> {
     /// Step the game simulation by the provided number of seconds.
     pub fn step(&mut self, delta_seconds: f32) {
         self.player.update(
+            &self.config.player,
             &self.settings,
             &self.input,
             &mut self.physics,
@@ -226,6 +229,7 @@ impl<'a> Sim<'a> {
         );
 
         self.car.update(
+            &self.config.car,
             &self.settings,
             &self.input,
             &mut self.physics,

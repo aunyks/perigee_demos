@@ -8,14 +8,12 @@ use crate::shared::input::Input;
 use crate::shared::settings::GameSettings;
 use crate::shared::vectors::*;
 use serde::{Deserialize, Serialize};
-use std::rc::Rc;
 use utils::{MovementState, WalkDirection};
 
 mod utils;
 
 #[derive(Serialize, Deserialize)]
 pub struct Player {
-    config: Rc<PlayerConfig>,
     pub controller: CharacterController,
     scene_object_name: String,
 
@@ -27,11 +25,10 @@ pub struct Player {
 }
 
 impl FromConfig for Player {
-    type Config<'a> = &'a Rc<PlayerConfig>;
+    type Config<'a> = &'a PlayerConfig;
 
     fn from_config<'a>(config: Self::Config<'a>) -> Self {
         Self {
-            config: Rc::clone(config),
             controller: CharacterController::from_config(&config.character_controller),
             // [P]re-[C]onfigured [P]layer
             scene_object_name: String::from("PCP"),
@@ -40,15 +37,12 @@ impl FromConfig for Player {
             animation_manager: AnimationManager::default(),
         }
     }
-
-    fn set_config<'a>(&mut self, _config: Self::Config<'a>) {
-        self.config = Rc::clone(_config);
-    }
 }
 
 impl Player {
     pub fn initialize(
         &mut self,
+        config: &PlayerConfig,
         gltf: &Gltf,
         physics: &mut PhysicsWorld,
         initial_isometry: Option<Isometry<f32, Unit<Quaternion<f32>>, 3>>,
@@ -58,6 +52,7 @@ impl Player {
             self.scene_object_name = new_object_name;
         }
         self.controller.add_to_physics_world(
+            config.character_controller.as_ref(),
             &mut physics.rigid_body_set,
             &mut physics.collider_set,
             initial_isometry,
@@ -89,6 +84,7 @@ impl Player {
 
     pub fn update(
         &mut self,
+        config: &PlayerConfig,
         settings: &GameSettings,
         input: &Input,
         physics: &mut PhysicsWorld,
@@ -96,10 +92,15 @@ impl Player {
     ) {
         let previous_tick_movement_state = *self.movement_state.current_state();
 
-        self.controller
-            .update(settings, physics, input, delta_seconds);
+        self.controller.update(
+            config.character_controller.as_ref(),
+            settings,
+            physics,
+            input,
+            delta_seconds,
+        );
 
-        self.determine_movement_state(&mut physics.rigid_body_set);
+        self.determine_movement_state(config, &mut physics.rigid_body_set);
 
         if *self.movement_state.current_state() != previous_tick_movement_state {
             self.animation_manager.stop_animation(
@@ -127,7 +128,11 @@ impl Player {
         self.controller.get_event()
     }
 
-    fn determine_movement_state(&mut self, rigid_body_set: &mut RigidBodySet) {
+    fn determine_movement_state(
+        &mut self,
+        config: &PlayerConfig,
+        rigid_body_set: &mut RigidBodySet,
+    ) {
         let linvel = self.controller.body_linear_velocity();
         let body_handle = self.controller.body_handle();
         if let Some(body) = rigid_body_set.get(body_handle) {
@@ -145,29 +150,22 @@ impl Player {
                             if inversely_transformed_linvel
                                 .angle(&FORWARD_VECTOR)
                                 .to_degrees()
-                                <= self
-                                    .config
+                                <= config
                                     .character_controller
                                     .max_sprint_forward_angle_threshold_discrete
                                 && linvel.magnitude()
-                                    >= self
-                                        .config
-                                        .character_controller
-                                        .standing_sprint_speed_discrete
-                                        * self.config.character_controller.discrete_movement_factor
+                                    >= config.character_controller.standing_sprint_speed_discrete
+                                        * config.character_controller.discrete_movement_factor
                             {
                                 MovementState::Sprinting
                             } else if linvel.magnitude()
-                                >= self.config.character_controller.standing_run_speed_discrete
-                                    * self.config.character_controller.discrete_movement_factor
+                                >= config.character_controller.standing_run_speed_discrete
+                                    * config.character_controller.discrete_movement_factor
                             {
                                 MovementState::Running
                             } else if linvel.magnitude()
-                                >= self
-                                    .config
-                                    .character_controller
-                                    .standing_walk_speed_discrete
-                                    * self.config.character_controller.discrete_movement_factor
+                                >= config.character_controller.standing_walk_speed_discrete
+                                    * config.character_controller.discrete_movement_factor
                             {
                                 let isometry_inverted_linvel = self
                                     .controller
@@ -185,11 +183,8 @@ impl Player {
                             }
                         } else {
                             if linvel.magnitude()
-                                >= self
-                                    .config
-                                    .character_controller
-                                    .crouched_creep_speed_discrete
-                                    * self.config.character_controller.discrete_movement_factor
+                                >= config.character_controller.crouched_creep_speed_discrete
+                                    * config.character_controller.discrete_movement_factor
                             {
                                 MovementState::Creeping
                             } else {
@@ -202,24 +197,18 @@ impl Player {
                     self.movement_state.transition_to(
                         if self.controller.crouch_state() == &CrouchState::Upright {
                             if linvel.magnitude()
-                                >= self
-                                    .config
-                                    .character_controller
-                                    .standing_sprint_speed_discrete
-                                    * self.config.character_controller.discrete_movement_factor
+                                >= config.character_controller.standing_sprint_speed_discrete
+                                    * config.character_controller.discrete_movement_factor
                             {
                                 MovementState::Sprinting
                             } else if linvel.magnitude()
-                                >= self.config.character_controller.standing_run_speed_discrete
-                                    * self.config.character_controller.discrete_movement_factor
+                                >= config.character_controller.standing_run_speed_discrete
+                                    * config.character_controller.discrete_movement_factor
                             {
                                 MovementState::Running
                             } else if linvel.magnitude()
-                                >= self
-                                    .config
-                                    .character_controller
-                                    .standing_walk_speed_discrete
-                                    * self.config.character_controller.discrete_movement_factor
+                                >= config.character_controller.standing_walk_speed_discrete
+                                    * config.character_controller.discrete_movement_factor
                             {
                                 MovementState::Walking(WalkDirection::Forward)
                             } else {
@@ -227,11 +216,8 @@ impl Player {
                             }
                         } else {
                             if linvel.magnitude()
-                                >= self
-                                    .config
-                                    .character_controller
-                                    .crouched_creep_speed_discrete
-                                    * self.config.character_controller.discrete_movement_factor
+                                >= config.character_controller.crouched_creep_speed_discrete
+                                    * config.character_controller.discrete_movement_factor
                             {
                                 MovementState::Creeping
                             } else {

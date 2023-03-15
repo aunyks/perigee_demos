@@ -5,7 +5,6 @@ use perigee::{
     traits::{TryFromToml, TryToToml},
 };
 use serde::{Deserialize, Serialize};
-use std::rc::Rc;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Level0Config {
@@ -14,9 +13,9 @@ pub struct Level0Config {
     #[serde(default)]
     pub physics: PhysicsConfig,
     #[serde(default)]
-    pub player: Rc<PlayerConfig>,
+    pub player: PlayerConfig,
     #[serde(default)]
-    pub car: Rc<CarConfig>,
+    pub car: CarConfig,
 }
 
 impl Default for Level0Config {
@@ -24,8 +23,8 @@ impl Default for Level0Config {
         Self {
             level_event_queue_capacity: Some(5),
             physics: PhysicsConfig::default(),
-            player: Rc::new(PlayerConfig::default()),
-            car: Rc::new(CarConfig::default()),
+            player: PlayerConfig::default(),
+            car: CarConfig::default(),
         }
     }
 }

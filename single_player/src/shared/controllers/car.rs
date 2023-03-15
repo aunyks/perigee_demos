@@ -7,7 +7,6 @@ use crate::shared::vectors::*;
 use perigee::prelude::*;
 use perigee::rapier3d::na::Translation3;
 use serde::{Deserialize, Serialize};
-use std::rc::Rc;
 
 #[derive(Serialize, Deserialize)]
 struct Shock {
@@ -50,8 +49,6 @@ impl WheelWell {
 
 #[derive(Serialize, Deserialize)]
 pub struct Car {
-    #[serde(skip)]
-    config: Rc<CarConfig>,
     camera_boom: Boom,
     rigid_body_handle: RigidBodyHandle,
     suspension_ray: Ray,
@@ -60,7 +57,7 @@ pub struct Car {
 }
 
 impl FromConfig for Car {
-    type Config<'a> = &'a Rc<CarConfig>;
+    type Config<'a> = &'a CarConfig;
     fn from_config<'a>(config: Self::Config<'a>) -> Self {
         let mut wheel_wells: Vec<WheelWell> = Vec::with_capacity(config.wheel_wells.len());
         for well_config in config.wheel_wells.iter() {
@@ -70,7 +67,6 @@ impl FromConfig for Car {
             ));
         }
         Self {
-            config: Rc::clone(config),
             rigid_body_handle: RigidBodyHandle::default(),
             suspension_ray: Ray::new(Point::new(0.0, 0.0, 0.0), Vector3::new(0.0, -1.0, 0.0)),
             cabin_isometry: Isometry::default(),
@@ -83,15 +79,12 @@ impl FromConfig for Car {
             suspension_system: wheel_wells,
         }
     }
-
-    fn set_config<'a>(&mut self, config: Self::Config<'a>) {
-        self.config = Rc::clone(config);
-    }
 }
 
 impl Car {
     pub fn add_to_physics_world(
         &mut self,
+        config: &CarConfig,
         rigid_body_set: &mut RigidBodySet,
         collider_set: &mut ColliderSet,
         initial_isometry: Option<Isometry<f32, UnitQuaternion<f32>, 3>>,
@@ -99,20 +92,16 @@ impl Car {
         let initial_isometry = if let Some(initial_isometry) = initial_isometry {
             initial_isometry
         } else {
-            Isometry::from(Vector3::new(
-                0.0,
-                self.config.suspension_max_length + 1.0,
-                6.0,
-            ))
+            Isometry::from(Vector3::new(0.0, config.suspension_max_length + 1.0, 6.0))
         };
 
         let rigid_body = RigidBodyBuilder::dynamic()
             .position(initial_isometry)
             .build();
         let cabin_collider = ColliderBuilder::cuboid(
-            self.config.cabin_half_width,
-            self.config.cabin_half_height,
-            self.config.cabin_half_length,
+            config.cabin_half_width,
+            config.cabin_half_height,
+            config.cabin_half_length,
         )
         .collision_groups(
             InteractionGroups::all().with_memberships(Group::from_bits_truncate(
@@ -123,7 +112,7 @@ impl Car {
         // this collider
         .active_events(ActiveEvents::COLLISION_EVENTS)
         // Set the mass (in kg, I think) of the collider
-        .density(self.config.mass)
+        .density(config.mass)
         .build();
 
         let rigid_body_handle = rigid_body_set.insert(rigid_body);
@@ -145,6 +134,7 @@ impl Car {
 
     pub fn update(
         &mut self,
+        config: &CarConfig,
         settings: &GameSettings,
         input: &Input,
         physics: &mut PhysicsWorld,
@@ -165,8 +155,8 @@ impl Car {
                     * (2.5 * f32::from(settings.left_right_look_sensitivity()) / 5.0).to_radians(),
                 input.rotate_up()
                     * (5.0 * f32::from(settings.up_down_look_sensitivity()) / 5.0).to_radians(),
-                self.config.max_look_up_angle,
-                self.config.min_look_up_angle,
+                config.max_look_up_angle,
+                config.min_look_up_angle,
             );
 
             Self::prevent_camera_obstructions(
@@ -176,7 +166,7 @@ impl Car {
                 &cloned_rigid_body_set.clone(),
                 &physics.collider_set,
                 query_filter.exclude_rigid_body(cabin_body_handle),
-                &self.config,
+                &config,
             );
 
             for wheel_well in self.suspension_system.iter_mut() {
@@ -188,7 +178,7 @@ impl Car {
                         &cloned_rigid_body_set,
                         &physics.collider_set,
                         &shock_ray,
-                        self.config.suspension_max_length,
+                        config.suspension_max_length,
                         true,
                         query_filter.exclude_rigid_body(cabin_body_handle),
                     )
@@ -198,7 +188,7 @@ impl Car {
                     let wheel_body_attachment_point = wheel_global_iso * Point::origin();
 
                     Self::simulate_suspension(
-                        &self.config,
+                        &config,
                         &mut wheel_well.shock,
                         &shock_ray,
                         &intersection_details,
@@ -212,19 +202,19 @@ impl Car {
                         &input,
                         &global_steer_state,
                         wheel_body_attachment_point,
-                        &self.config,
+                        &config,
                         delta_seconds,
                     );
 
                     if let Some(wheel_orientation) = wheel_well.steer_state.as_mut() {
-                        Self::simulate_steering(&input, wheel_orientation, &self.config);
+                        Self::simulate_steering(&input, wheel_orientation, &config);
                     }
 
                     Self::simulate_wheel_grip(
                         cabin_body,
                         &global_steer_state,
                         wheel_body_attachment_point,
-                        &self.config,
+                        &config,
                         cabin_body.mass() / (num_wheels as f32),
                         delta_seconds,
                     );
@@ -235,12 +225,12 @@ impl Car {
                             &input,
                             &global_steer_state,
                             wheel_body_attachment_point,
-                            &self.config,
+                            &config,
                             delta_seconds,
                         );
                     }
                 } else {
-                    wheel_well.shock.last_toi = self.config.suspension_max_length;
+                    wheel_well.shock.last_toi = config.suspension_max_length;
                 }
             }
         }
