@@ -117,7 +117,7 @@
     </div>
     <dialog role="dialog" aria-labelledby="intro-title" aria-describedby="intro-content" id="intro-modal"
       can-exit="false">
-      <section class="container">
+      <article class="container">
         <h1 id="intro-title">Demo Level</h1>
         <p id="intro-content" style="margin-bottom: 1rem;"> This is the level I use to test everything in the game. This
           is a super early rough draft. Let me know if there's something you'd like to see or if something could be made
@@ -154,28 +154,28 @@
           </div>
         </details>
         <button id="start-game-button">Start Game</button>
-      </section>
+      </article>
     </dialog>
     <dialog role="dialog" aria-label="Pause menu" id="pause-modal" can-exit="false">
-      <section class="container">
+      <article class="container">
         <button id="resume-game-button">Resume</button>
         <button id="restart-level-button">Restart Level</button>
         <button id="settings-button">Settings</button>
         <button id="quit-game-button">Quit Game</button>
-      </section>
+      </article>
     </dialog>
     <dialog role="dialog" aria-label="Confirm restart" id="restart-level-conf-modal" can-exit="false">
-      <section class="container">
+      <article class="container">
         <h2>Are you sure?</h2>
         <p style="margin-bottom: 1em;">This will restart the entire level and ignore your current progress.</p>
         <div class="grid">
           <button id="restart-level-conf-button">Yes</button>
           <button id="restart-level-deny-button">No</button>
         </div>
-      </section>
+      </article>
     </dialog>
     <dialog role="dialog" aria-label="Settings" id="settings-modal" can-exit="false" class="settings-modal">
-      <section class="container">
+      <article class="container">
         <label for="master-volume-slider">Master Volume</label>
         <input id="master-volume-slider" type="range" min="0" max="100" value="100" />
         <label for="horiz-sens-slider">Horizontal Look Sensitivity</label>
@@ -211,13 +211,13 @@
         <label for="debug-tools-toggle" data-debug="true">Show Debug Tools</label>
         <input id="debug-tools-toggle" type="checkbox" />
         <button id="settings-back-button">Back</button>
-      </section>
+      </article>
     </dialog>
     <dialog role="alertdialog" id="error-modal" can-exit="false">
-      <section class="container">
+      <article class="container">
         <h2>An error occurred while loading assets.</h2>
         <a role="button" href="" style="width: 100%;">Try again</a>
-      </section>
+      </article>
     </dialog>
     <script src="/js/misc/mobile-safari-disable-pinch-zoom.js"></script>
     <script type="module" src="/js/levels/0/index.js"></script>
