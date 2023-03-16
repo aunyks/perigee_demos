@@ -21,6 +21,10 @@ html, body {
   height: 100vh;
 }
 
+label {
+  color: var(--color);
+}
+
 @media only screen and (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     --primary: #fab700;
