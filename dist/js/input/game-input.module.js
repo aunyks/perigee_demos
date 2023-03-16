@@ -6,9 +6,8 @@ import VirtualJoystickInput from './virtual-joystick.module.js'
 import VirtualJumpBtnInput from './virtual-jumpbtn.module.js'
 import VirtualCrouchBtnInput from './virtual-crouchbtn.module.js'
 
-// Mirrors the Input struct in the core crate
 class GameInput {
-  constructor() {
+  constructor({ gamepads }) {
     this._moveForward = 0
     this._moveRight = 0
     this._rotateUp = 0
@@ -16,6 +15,30 @@ class GameInput {
     this._jump = false
     this._crouch = false
     this._aim = false
+    this._pause = false
+
+    // Higher importance inputs should be later in the list
+    this._inputs = [
+      new PointerLockInput(document.getElementById('scene-container')),
+      new KeyboardInput(document.body),
+      new VirtualJoystickInput(document.getElementById('virtual-joystick')),
+      new TouchInput(document.getElementById('scene-canvas')),
+      new VirtualJumpBtnInput(
+        document.getElementById('virtual-jump-button-container')
+      ),
+      // new VirtualCrouchBtnInput(document.getElementById('virtual-crouch-button-container')),
+    ]
+
+    for (const gamepad of gamepads) {
+      const pad = new GamepadInput(gamepad.index)
+      pad.onConnect(gamepad.onConnect)
+      pad.onDisconnect(gamepad.onDisconnect)
+      this._inputs.push(pad)
+    }
+  }
+
+  pause() {
+    return this._pause
   }
 
   moveForward() {
@@ -46,100 +69,74 @@ class GameInput {
     return this._aim
   }
 
-  setMoveForward(newMagnitude) {
-    this._moveForward = newMagnitude
-  }
+  update() {
+    for (const input of this._inputs) {
+      if (input.ready()) {
+        if (input instanceof KeyboardInput) {
+          if (input.wPressed() || input.upPressed()) {
+            this._moveForward = -1
+          } else if (input.sPressed() || input.downPressed()) {
+            this._moveForward = 1
+          } else {
+            this._moveForward = 0
+          }
+          if (input.aPressed() || input.leftPressed()) {
+            this._moveRight = -1
+          } else if (input.dPressed() || input.rightPressed()) {
+            this._moveRight = 1
+          } else {
+            this._moveRight = 0
+          }
+          this._jump = input.spacebarPressed()
+          this._crouch = input.cPressed()
+          this._pause = input.escapePressed()
+        } else if (input instanceof PointerLockInput) {
+          if (input.isLocked()) {
+            this._rotateRight = input.getDx() * 0.25
+            this._rotateUp = -input.getDy() * 0.25
+            this._aim = input.rightDown()
+          }
+        } else if (input instanceof VirtualJoystickInput) {
+          const stickPos = input.getStickPos()
+          this._moveRight = stickPos.x
+          this._moveForward = stickPos.y
+        } else if (input instanceof TouchInput) {
+          this._rotateRight = input.getDx() * 0.3
+          this._rotateUp = -input.getDy() * 0.3
+        } else if (input instanceof VirtualJumpBtnInput) {
+          this._jump = input.btnPressed()
+        } else if (input instanceof VirtualCrouchBtnInput) {
+          this._crouch = input.btnPressed()
+        } else if (input instanceof GamepadInput) {
+          const leftStickPos = input.getLeftStickPos()
+          const rightStickPos = input.getRightStickPos()
 
-  setMoveRight(newMagnitude) {
-    this._moveRight = newMagnitude
-  }
+          this._jump = input.bPadSouthPressed()
+          this._crouch = input.bPadEastPressed()
+          this._aim = input.leftTriggerPressed()
+          this._pause = input.startBtnPressed()
 
-  setRotateUp(newMagnitude) {
-    this._rotateUp = newMagnitude
-  }
+          this._moveRight = leftStickPos.x
+          this._moveForward = leftStickPos.y
 
-  setRotateRight(newMagnitude) {
-    this._rotateRight = newMagnitude
-  }
-
-  setJump(jumpState) {
-    this._jump = jumpState
-  }
-
-  setCrouch(crouchState) {
-    this._crouch = crouchState
-  }
-
-  setAim(aimState) {
-    this._aim = aimState
-  }
-}
-
-function processInputs(inputs, gameInput) {
-  for (const input of inputs) {
-    if (input.ready()) {
-      if (input instanceof KeyboardInput) {
-        if (input.wPressed() || input.upPressed()) {
-          gameInput.setMoveForward(-1)
-        } else if (input.sPressed() || input.downPressed()) {
-          gameInput.setMoveForward(1)
+          this._rotateRight = rightStickPos.x * 0.5
+          this._rotateUp = -rightStickPos.y * 0.3
         } else {
-          gameInput.setMoveForward(0)
+          console.warn(`Unrecognized input ${input} provided for processing`)
         }
-        if (input.aPressed() || input.leftPressed()) {
-          gameInput.setMoveRight(-1)
-        } else if (input.dPressed() || input.rightPressed()) {
-          gameInput.setMoveRight(1)
-        } else {
-          gameInput.setMoveRight(0)
-        }
-        gameInput.setJump(input.spacebarPressed())
-        gameInput.setCrouch(input.cPressed())
-      } else if (input instanceof PointerLockInput) {
-        if (input.isLocked()) {
-          gameInput.setRotateRight(input.getDx() * 0.25)
-          gameInput.setRotateUp(-input.getDy() * 0.25)
-          gameInput.setAim(input.rightDown())
-        }
-      } else if (input instanceof VirtualJoystickInput) {
-        const stickPos = input.getStickPos()
-        gameInput.setMoveRight(stickPos.x)
-        gameInput.setMoveForward(stickPos.y)
-      } else if (input instanceof TouchInput) {
-        gameInput.setRotateRight(input.getDx() * 0.3)
-        gameInput.setRotateUp(-input.getDy() * 0.3)
-      } else if (input instanceof VirtualJumpBtnInput) {
-        gameInput.setJump(input.btnPressed())
-      } else if (input instanceof VirtualCrouchBtnInput) {
-        gameInput.setCrouch(input.btnPressed())
-      } else if (input instanceof GamepadInput) {
-        const leftStickPos = input.getLeftStickPos()
-        const rightStickPos = input.getRightStickPos()
-
-        gameInput.setJump(input.bPadSouthPressed())
-        gameInput.setCrouch(input.bPadEastPressed())
-        gameInput.setAim(input.leftTriggerPressed())
-
-        gameInput.setMoveRight(leftStickPos.x)
-        gameInput.setMoveForward(leftStickPos.y)
-
-        gameInput.setRotateRight(rightStickPos.x * 0.5)
-        gameInput.setRotateUp(-rightStickPos.y * 0.3)
-      } else {
-        console.warn(`Unrecognized input ${input} provided for processing`)
       }
     }
   }
+
+  copyToSim(sim) {
+    sim.inputSetRotateUp(this.rotateUp())
+    sim.inputSetRotateRight(this.rotateRight())
+    sim.inputSetMoveForward(this.moveForward())
+    sim.inputSetMoveRight(this.moveRight())
+    sim.inputSetJump(this.jump())
+    sim.inputSetCrouch(this.crouch())
+    sim.inputSetAim(this.aim())
+  }
 }
 
-function collectInputsIntoSimulation(gameInput, gameSimulation) {
-  gameSimulation.inputSetRotateUp(gameInput.rotateUp())
-  gameSimulation.inputSetRotateRight(gameInput.rotateRight())
-  gameSimulation.inputSetMoveForward(gameInput.moveForward())
-  gameSimulation.inputSetMoveRight(gameInput.moveRight())
-  gameSimulation.inputSetJump(gameInput.jump())
-  gameSimulation.inputSetCrouch(gameInput.crouch())
-  gameSimulation.inputSetAim(gameInput.aim())
-}
-
-export { GameInput, processInputs, collectInputsIntoSimulation }
+export { GameInput }

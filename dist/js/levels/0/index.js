@@ -21,20 +21,8 @@ import { EffectComposer } from '/js/graphics/postprocessing/EffectComposer.js'
 import { RenderPass } from '/js/graphics/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from '/js/graphics/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from '/js/graphics/postprocessing/ShaderPass.js'
-import { SMAAPass } from '/js/graphics/postprocessing/SMAAPass.js'
 import { FXAAShader } from '/js/graphics/postprocessing/shaders/FXAAShader.js'
-import PointerLockInput from '/js/input/pointerlock.module.js'
-import KeyboardInput from '/js/input/keyboard.module.js'
-import VirtualJoystickInput from '/js/input/virtual-joystick.module.js'
-import VirtualJumpBtnInput from '/js/input/virtual-jumpbtn.module.js'
-// import VirtualCrouchBtnInput from '/js/input/virtual-crouchbtn.module.js'
-import TouchInput from '/js/input/touch.module.js'
-import GamepadInput from '/js/input/gamepad.module.js'
-import {
-  GameInput,
-  processInputs,
-  collectInputsIntoSimulation,
-} from '/js/input/game-input.module.js'
+import { GameInput } from '/js/input/game-input.module.js'
 import { Sim } from '/js/levels/0/Sim.module.js'
 import {
   randomIntFromZero,
@@ -218,7 +206,7 @@ Promise.all(assetsToLoad)
               audioTrack.detune =
                 100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
             }
-            audioTrack.play()
+            audioTrack.setPlaybackRate(playbackRate).play()
           }
         }
       })
@@ -236,7 +224,7 @@ Promise.all(assetsToLoad)
               audioTrack.detune =
                 100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
             }
-            audioTrack.setLoop(true).play()
+            audioTrack.setLoop(true).setPlaybackRate(playbackRate).play()
           }
         }
       })
@@ -288,33 +276,27 @@ Promise.all(assetsToLoad)
         adAnnounce(msg)
       })
 
-      const keyboardInput = new KeyboardInput(document.body)
-      const gamepadInput = new GamepadInput(0)
-      gamepadInput.onConnect(() => {
-        document.querySelectorAll('.hud.input').forEach((hudInputElement) => {
-          hudInputElement.style.display = 'none'
-        })
+      const gameInput = new GameInput({
+        gamepads: [
+          {
+            index: 0,
+            onConnect: () => {
+              document
+                .querySelectorAll('.hud.input')
+                .forEach((hudInputElement) => {
+                  hudInputElement.style.display = 'none'
+                })
+            },
+            onDisconnect: () => {
+              document
+                .querySelectorAll('.hud.input')
+                .forEach((hudInputElement) => {
+                  hudInputElement.style.display = 'block'
+                })
+            },
+          },
+        ],
       })
-
-      gamepadInput.onDisconnect(() => {
-        document.querySelectorAll('.hud.input').forEach((hudInputElement) => {
-          hudInputElement.style.display = 'block'
-        })
-      })
-
-      // Higher importance inputs should be later in the list
-      const inputs = [
-        new PointerLockInput(document.getElementById('scene-container')),
-        keyboardInput,
-        new VirtualJoystickInput(document.getElementById('virtual-joystick')),
-        new TouchInput(sceneCanvas),
-        new VirtualJumpBtnInput(
-          document.getElementById('virtual-jump-button-container')
-        ),
-        // new VirtualCrouchBtnInput(document.getElementById('virtual-crouch-button-container')),
-        gamepadInput,
-      ]
-      const gameInput = new GameInput()
 
       document.getElementById('pause-button').addEventListener('click', () => {
         pauseGame()
@@ -341,17 +323,12 @@ Promise.all(assetsToLoad)
         deltaT = Math.abs(tFrame - lastTimestamp)
         perfStatistics.begin()
         if (deltaT < 90 && deltaT !== 0) {
-          const gamepadReady = gamepadInput.ready()
-          const shouldPause =
-            (keyboardInput.ready() && keyboardInput.escapePressed()) ||
-            (gamepadReady && gamepadInput.startBtnPressed())
-          if (shouldPause) {
+          gameInput.update()
+          if (gameInput.pause()) {
             pauseGame()
             return
           }
-
-          processInputs(inputs, gameInput)
-          collectInputsIntoSimulation(gameInput, sim)
+          gameInput.copyToSim(sim)
 
           const deltaSeconds = deltaT / 1000
           sim.step(deltaSeconds)
