@@ -218,6 +218,10 @@ impl<'a> Sim<'a> {
         self.initialize();
     }
 
+    pub fn desired_fps(&self) -> f32 {
+        30.0
+    }
+
     /// Step the game simulation by the provided number of seconds.
     pub fn step(&mut self, delta_seconds: f32) {
         self.player.update(

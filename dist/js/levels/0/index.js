@@ -306,6 +306,9 @@ Promise.all(assetsToLoad)
       let lastTimestamp = null
       let deltaT = 0
       let activeCamera = animatedCamera
+      let accumulatedTimestep = 0
+      const desiredTimestep = 1 / sim.desiredFps()
+      const MAX_FRAMES_TO_DROP = 3
 
       const postProcessComposer = new EffectComposer(renderer)
       postProcessComposer.addPass(new RenderPass(mainScene, activeCamera))
@@ -322,16 +325,22 @@ Promise.all(assetsToLoad)
       function onGameLoopTick(tFrame) {
         deltaT = Math.abs(tFrame - lastTimestamp)
         perfStatistics.begin()
-        if (deltaT < 90 && deltaT !== 0) {
-          gameInput.update()
-          if (gameInput.pause()) {
-            pauseGame()
-            return
-          }
-          gameInput.copyToSim(sim)
-
+        {
           const deltaSeconds = deltaT / 1000
-          sim.step(deltaSeconds)
+          accumulatedTimestep += deltaSeconds
+          if (accumulatedTimestep >= desiredTimestep * MAX_FRAMES_TO_DROP) {
+            accumulatedTimestep = desiredTimestep * MAX_FRAMES_TO_DROP
+          }
+          while (accumulatedTimestep >= desiredTimestep) {
+            accumulatedTimestep -= desiredTimestep
+            gameInput.update()
+            if (gameInput.pause()) {
+              pauseGame()
+              return
+            }
+            gameInput.copyToSim(sim)
+            sim.step(desiredTimestep)
+          }
 
           for (const detailedMixer of sceneMixers.values()) {
             detailedMixer.mixer.update(deltaSeconds)

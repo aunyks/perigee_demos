@@ -129,6 +129,10 @@ class Sim extends WasmUtils {
     this._wasmExports.initialize_sim(this._simPointer)
   }
 
+  desiredFps() {
+    return this._wasmExports.desired_fps()
+  }
+
   reset() {
     this._wasmExports.destroy_sim(this._simPointer)
     this._simPointer = this._wasmExports.create_sim()
