@@ -306,6 +306,7 @@ Promise.all(assetsToLoad)
       let lastTimestamp = null
       let deltaT = 0
       let activeCamera = animatedCamera
+      // https://www.gafferongames.com/post/fix_your_timestep/ "Free the physics"
       let accumulatedTimestep = 0
       const desiredTimestep = 1 / sim.desiredFps()
       const MAX_FRAMES_TO_DROP = 3

@@ -1,74 +1,34 @@
-use crate::config::car::{CarConfig, WheelWellConfig};
+use crate::config::car::CarConfig;
 use crate::shared::boom::Boom;
 use crate::shared::input::Input;
 use crate::shared::interactions::InteractionGroup;
 use crate::shared::settings::GameSettings;
 use crate::shared::vectors::*;
 use perigee::prelude::*;
-use perigee::rapier3d::na::Translation3;
+use perigee::rapier3d::control::DynamicRayCastVehicleController;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
-struct Shock {
-    pub translation: Translation3<f32>,
-    pub last_toi: f32,
-}
-
-#[derive(Serialize, Deserialize)]
-struct WheelWell {
-    /// A structure to help manage the vehicle's
-    /// suspension system.
-    pub shock: Shock,
-    /// A wheel that turns and controls the direction
-    /// of the vehicle. If there is none, then the wheel is
-    /// always rolling straight forward and doesn't turn.
-    pub steer_state: Option<UnitQuaternion<f32>>,
-    /// Whether this wheel receives power from the engine.
-    /// Use this to help determine the drivetrain layout.
-    pub receives_power: bool,
-}
-
-impl WheelWell {
-    pub fn from_config(config: &WheelWellConfig, default_suspension_max_length: f32) -> Self {
-        Self {
-            receives_power: config.receives_power,
-            steer_state: if config.steers_on_input {
-                Some(UnitQuaternion::identity())
-            } else {
-                None
-            },
-            shock: Shock {
-                translation: Translation::from(config.center_cabin_relative_position),
-                last_toi: config
-                    .suspension_max_length
-                    .unwrap_or(default_suspension_max_length),
-            },
-        }
-    }
+fn default_rapier_vehicle() -> DynamicRayCastVehicleController {
+    DynamicRayCastVehicleController::new(RigidBodyHandle::default())
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Car {
     camera_boom: Boom,
     rigid_body_handle: RigidBodyHandle,
-    suspension_ray: Ray,
-    suspension_system: Vec<WheelWell>,
     cabin_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
+    #[serde(skip, default = "default_rapier_vehicle")]
+    rapier_vehicle: DynamicRayCastVehicleController,
 }
 
 impl FromConfig for Car {
     type Config<'a> = &'a CarConfig;
     fn from_config<'a>(config: Self::Config<'a>) -> Self {
-        let mut wheel_wells: Vec<WheelWell> = Vec::with_capacity(config.wheel_wells.len());
-        for well_config in config.wheel_wells.iter() {
-            wheel_wells.push(WheelWell::from_config(
-                well_config,
-                config.suspension_max_length,
-            ));
-        }
+        let rigid_body_handle = RigidBodyHandle::default();
+        let rapier_vehicle = DynamicRayCastVehicleController::new(rigid_body_handle);
         Self {
-            rigid_body_handle: RigidBodyHandle::default(),
-            suspension_ray: Ray::new(Point::new(0.0, 0.0, 0.0), Vector3::new(0.0, -1.0, 0.0)),
+            rigid_body_handle,
+            rapier_vehicle,
             cabin_isometry: Isometry::default(),
             camera_boom: Boom::new(
                 config.max_boom_length,
@@ -76,7 +36,6 @@ impl FromConfig for Car {
                 config.initial_boom_yaw_angle,
                 true,
             ),
-            suspension_system: wheel_wells,
         }
     }
 }
@@ -118,6 +77,8 @@ impl Car {
         let rigid_body_handle = rigid_body_set.insert(rigid_body);
         collider_set.insert_with_parent(cabin_collider, rigid_body_handle, rigid_body_set);
         self.rigid_body_handle = rigid_body_handle;
+
+        self.rapier_vehicle = DynamicRayCastVehicleController::new(self.rigid_body_handle);
     }
 
     pub fn body_handle(&self) -> RigidBodyHandle {
@@ -140,14 +101,18 @@ impl Car {
         physics: &mut PhysicsWorld,
         delta_seconds: f32,
     ) {
-        let query_filter = QueryFilter::new();
-
         let cabin_body_handle = self.body_handle();
-        let cloned_rigid_body_set = physics.rigid_body_set.clone();
-        if let Some(cabin_body) = physics.rigid_body_set.get_mut(cabin_body_handle) {
-            self.cabin_isometry = *cabin_body.position();
-            let num_wheels = self.suspension_system.len();
+        let cloned_body_set = physics.rigid_body_set.clone();
 
+        self.rapier_vehicle.update_vehicle(
+            delta_seconds,
+            &mut physics.rigid_body_set,
+            &physics.collider_set,
+            &physics.query_pipeline,
+            QueryFilter::exclude_dynamic().exclude_rigid_body(self.body_handle()),
+        );
+
+        if let Some(cabin_body) = physics.rigid_body_set.get_mut(cabin_body_handle) {
             Self::update_boom_isometry(
                 cabin_body,
                 &mut self.camera_boom,
@@ -163,200 +128,12 @@ impl Car {
                 cabin_body,
                 &mut self.camera_boom,
                 &mut physics.query_pipeline,
-                &cloned_rigid_body_set.clone(),
+                &cloned_body_set,
                 &physics.collider_set,
-                query_filter.exclude_rigid_body(cabin_body_handle),
+                QueryFilter::new().exclude_rigid_body(cabin_body_handle),
                 &config,
             );
-
-            for wheel_well in self.suspension_system.iter_mut() {
-                let wheel_global_iso = cabin_body.position() * wheel_well.shock.translation;
-                let shock_ray = self.suspension_ray.transform_by(&wheel_global_iso);
-
-                if let Some((_, intersection_details)) =
-                    physics.query_pipeline.cast_ray_and_get_normal(
-                        &cloned_rigid_body_set,
-                        &physics.collider_set,
-                        &shock_ray,
-                        config.suspension_max_length,
-                        true,
-                        query_filter.exclude_rigid_body(cabin_body_handle),
-                    )
-                {
-                    let global_steer_state = wheel_global_iso.rotation
-                        * wheel_well.steer_state.unwrap_or(UnitQuaternion::identity());
-                    let wheel_body_attachment_point = wheel_global_iso * Point::origin();
-
-                    Self::simulate_suspension(
-                        &config,
-                        &mut wheel_well.shock,
-                        &shock_ray,
-                        &intersection_details,
-                        cabin_body,
-                        wheel_body_attachment_point,
-                        delta_seconds,
-                    );
-
-                    Self::simulate_brake(
-                        cabin_body,
-                        &input,
-                        &global_steer_state,
-                        wheel_body_attachment_point,
-                        &config,
-                        delta_seconds,
-                    );
-
-                    if let Some(wheel_orientation) = wheel_well.steer_state.as_mut() {
-                        Self::simulate_steering(&input, wheel_orientation, &config);
-                    }
-
-                    Self::simulate_wheel_grip(
-                        cabin_body,
-                        &global_steer_state,
-                        wheel_body_attachment_point,
-                        &config,
-                        cabin_body.mass() / (num_wheels as f32),
-                        delta_seconds,
-                    );
-
-                    if wheel_well.receives_power {
-                        Self::simulate_throttle(
-                            cabin_body,
-                            &input,
-                            &global_steer_state,
-                            wheel_body_attachment_point,
-                            &config,
-                            delta_seconds,
-                        );
-                    }
-                } else {
-                    wheel_well.shock.last_toi = config.suspension_max_length;
-                }
-            }
         }
-    }
-
-    fn simulate_suspension(
-        config: &CarConfig,
-        shock: &mut Shock,
-        shock_ray: &Ray,
-        intersection_details: &RayIntersection,
-        cabin_body: &mut RigidBody,
-        force_app_location: Point<f32>,
-        delta_seconds: f32,
-    ) {
-        let up = -shock_ray.dir;
-
-        let spring_compression = config.suspension_max_length - intersection_details.toi;
-
-        let spring_force = up * config.shock_spring_constant * spring_compression;
-
-        let up_velocity = (intersection_details.toi - shock.last_toi) / delta_seconds;
-
-        let dampening_force = up * up_velocity * config.shock_spring_dampening_factor;
-
-        let shock_force = spring_force - dampening_force;
-
-        cabin_body.apply_impulse_at_point(shock_force * delta_seconds, force_app_location, true);
-        shock.last_toi = intersection_details.toi;
-    }
-
-    /// Apply force in the wheel forward direction
-    /// based on input
-    fn simulate_throttle(
-        cabin_body: &mut RigidBody,
-        input: &Input,
-        global_steer_state: &UnitQuaternion<f32>,
-        force_app_location: Point<f32>,
-        config: &CarConfig,
-        delta_seconds: f32,
-    ) {
-        let force_direction = global_steer_state * FORWARD_VECTOR;
-        cabin_body.apply_impulse_at_point(
-            force_direction
-                * config.throttle_force
-                * f32::max(0.0, input.throttle())
-                * delta_seconds,
-            force_app_location,
-            true,
-        );
-    }
-
-    /// Apply force in the wheel back direction
-    /// based on input
-    fn simulate_brake(
-        cabin_body: &mut RigidBody,
-        input: &Input,
-        global_steer_state: &UnitQuaternion<f32>,
-        force_app_location: Point<f32>,
-        config: &CarConfig,
-        delta_seconds: f32,
-    ) {
-        let force_direction = global_steer_state * BACK_VECTOR;
-        cabin_body.apply_impulse_at_point(
-            force_direction * config.brake_force * f32::max(0.0, input.brake()) * delta_seconds,
-            force_app_location,
-            true,
-        );
-    }
-
-    /// Make sure wheel restricts non-forward direction
-    /// movement based on its grip configuration
-    fn simulate_wheel_grip(
-        cabin_body: &mut RigidBody,
-        global_steer_state: &UnitQuaternion<f32>,
-        force_app_location: Point<f32>,
-        config: &CarConfig,
-        wheel_mass: f32,
-        delta_seconds: f32,
-    ) {
-        let mut wheel_turn_velocity = cabin_body.velocity_at_point(&force_app_location);
-        wheel_turn_velocity.y = 0.0;
-        let wheel_local_turn_velocity =
-            global_steer_state.inverse_transform_vector(&wheel_turn_velocity);
-
-        let mut wheel_local_turn_velocity_no_drift = wheel_local_turn_velocity.clone();
-        wheel_local_turn_velocity_no_drift.x = 0.0;
-
-        let wheel_local_frame_goal_velocity = move_towards(
-            &wheel_local_turn_velocity,
-            &wheel_local_turn_velocity_no_drift,
-            config.wheel_grip * delta_seconds,
-        );
-
-        let wheel_local_frame_acceleration =
-            wheel_local_frame_goal_velocity - wheel_local_turn_velocity;
-
-        cabin_body.apply_impulse_at_point(
-            global_steer_state.transform_vector(&(wheel_local_frame_acceleration * wheel_mass)),
-            force_app_location,
-            true,
-        );
-    }
-
-    /// Rotate wheel based on input
-    fn simulate_steering(
-        input: &Input,
-        wheel_orientation: &mut UnitQuaternion<f32>,
-        config: &CarConfig,
-    ) {
-        let steer_factor = input.steer();
-
-        let steer_lerp_t = remap(steer_factor, -1.0, 1.0, 0.0, 1.0);
-
-        wheel_orientation.clone_from(
-            &UnitQuaternion::from_axis_angle(
-                &Unit::new_normalize(UP_VECTOR),
-                config.wheel_left_turn_angle.to_radians(),
-            )
-            .slerp(
-                &UnitQuaternion::from_axis_angle(
-                    &Unit::new_normalize(UP_VECTOR),
-                    config.wheel_right_turn_angle.to_radians(),
-                ),
-                steer_lerp_t,
-            ),
-        );
     }
 
     fn update_boom_isometry(
