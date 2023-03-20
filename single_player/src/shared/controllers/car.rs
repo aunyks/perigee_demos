@@ -4,8 +4,8 @@ use crate::shared::input::Input;
 use crate::shared::interactions::InteractionGroup;
 use crate::shared::settings::GameSettings;
 use crate::shared::vectors::*;
-use perigee::prelude::*;
 use perigee::rapier3d::control::DynamicRayCastVehicleController;
+use perigee::{prelude::*, rapier3d::control::WheelTuning};
 use serde::{Deserialize, Serialize};
 
 fn default_rapier_vehicle() -> DynamicRayCastVehicleController {
@@ -51,7 +51,7 @@ impl Car {
         let initial_isometry = if let Some(initial_isometry) = initial_isometry {
             initial_isometry
         } else {
-            Isometry::from(Vector3::new(0.0, config.suspension_max_length + 1.0, 6.0))
+            Isometry::from(Vector3::new(-2.0, config.suspension_rest_length + 3.0, 0.0))
         };
 
         let rigid_body = RigidBodyBuilder::dynamic()
@@ -79,6 +79,19 @@ impl Car {
         self.rigid_body_handle = rigid_body_handle;
 
         self.rapier_vehicle = DynamicRayCastVehicleController::new(self.rigid_body_handle);
+        let wheel_tuning = WheelTuning::from(config);
+        for wheel in config.wheels.iter() {
+            self.rapier_vehicle.add_wheel(
+                Point::from(wheel.center_cabin_relative_position),
+                -Vector3::y(),
+                Vector3::x(),
+                wheel
+                    .suspension_rest_length
+                    .unwrap_or(config.suspension_rest_length),
+                wheel.radius.unwrap_or(config.wheel_radius),
+                &wheel_tuning,
+            );
+        }
     }
 
     pub fn body_handle(&self) -> RigidBodyHandle {
@@ -102,20 +115,37 @@ impl Car {
         delta_seconds: f32,
     ) {
         let cabin_body_handle = self.body_handle();
-        let cloned_body_set = physics.rigid_body_set.clone();
+
+        let steer_angle = lerp(
+            config.wheel_left_turn_angle,
+            config.wheel_right_turn_angle,
+            remap(input.steer(), -1.0, 1.0, 0.0, 1.0),
+        );
+        for (wheel_index, wheel) in self.rapier_vehicle.wheels_mut().iter_mut().enumerate() {
+            let wheel_config = config.wheels[wheel_index];
+            // if wheel_config.receives_power {
+            wheel.engine_force += config.throttle_force * input.throttle();
+            // }
+            // wheel.engine_force -= config.brake_force * input.brake();
+            if wheel_config.steers_on_input {
+                wheel.steering = steer_angle.to_radians();
+            }
+        }
 
         self.rapier_vehicle.update_vehicle(
             delta_seconds,
             &mut physics.rigid_body_set,
             &physics.collider_set,
             &physics.query_pipeline,
-            QueryFilter::exclude_dynamic().exclude_rigid_body(self.body_handle()),
+            QueryFilter::exclude_dynamic().exclude_rigid_body(cabin_body_handle),
         );
 
-        if let Some(cabin_body) = physics.rigid_body_set.get_mut(cabin_body_handle) {
+        if let Some(cabin_body) = physics.rigid_body_set.get(cabin_body_handle) {
+            self.cabin_isometry = *cabin_body.position();
+
             Self::update_boom_isometry(
-                cabin_body,
                 &mut self.camera_boom,
+                cabin_body,
                 -input.rotate_right()
                     * (2.5 * f32::from(settings.left_right_look_sensitivity()) / 5.0).to_radians(),
                 input.rotate_up()
@@ -125,20 +155,20 @@ impl Car {
             );
 
             Self::prevent_camera_obstructions(
-                cabin_body,
                 &mut self.camera_boom,
-                &mut physics.query_pipeline,
-                &cloned_body_set,
+                &config,
+                cabin_body,
+                &physics.query_pipeline,
+                &physics.rigid_body_set,
                 &physics.collider_set,
                 QueryFilter::new().exclude_rigid_body(cabin_body_handle),
-                &config,
             );
         }
     }
 
     fn update_boom_isometry(
-        cabin_body: &mut RigidBody,
         boom: &mut Boom,
+        cabin_body: &RigidBody,
         yaw_magnitude: f32,
         pitch_magnitude: f32,
         min_pitch_angle: f32,
@@ -160,13 +190,13 @@ impl Car {
     }
 
     fn prevent_camera_obstructions(
-        cabin_body: &mut RigidBody,
         camera_boom: &mut Boom,
-        query_pipeline: &mut QueryPipeline,
+        config: &CarConfig,
+        cabin_body: &RigidBody,
+        query_pipeline: &QueryPipeline,
         rigid_body_set: &RigidBodySet,
         collider_set: &ColliderSet,
         query_filter_excluding_cabin: QueryFilter,
-        config: &CarConfig,
     ) {
         let body_translation = cabin_body.position().translation;
         let diff_vec = camera_boom.end_isometry().translation.vector - body_translation.vector;

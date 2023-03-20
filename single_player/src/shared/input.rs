@@ -86,8 +86,8 @@ impl Input {
     /// controlled by the character controller (back is positive, forward is negative).
     pub fn set_move_forward(&mut self, new_magnitude: f32) {
         self.move_forward = new_magnitude;
-        self.brake = new_magnitude;
-        self.throttle = -new_magnitude;
+        self.brake = if new_magnitude > 0.0 { 1.0 } else { 0.0 };
+        self.throttle = if new_magnitude < 0.0 { 1.0 } else { 0.0 };
     }
 
     /// Sets the right moving magnitude of the object

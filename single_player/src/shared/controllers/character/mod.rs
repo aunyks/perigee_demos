@@ -145,7 +145,7 @@ impl CharacterController {
             initial_isometry
         } else {
             Isometry::from_parts(
-                Translation::new(0.0, 1.0, 0.0),
+                Translation::new(2.0, 1.0, 0.0),
                 UnitQuaternion::from_quaternion(Quaternion::identity()),
             )
         };

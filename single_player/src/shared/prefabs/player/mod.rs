@@ -52,7 +52,7 @@ impl Player {
             self.scene_object_name = new_object_name;
         }
         self.controller.add_to_physics_world(
-            config.character_controller.as_ref(),
+            &config.character_controller,
             &mut physics.rigid_body_set,
             &mut physics.collider_set,
             initial_isometry,
@@ -93,7 +93,7 @@ impl Player {
         let previous_tick_movement_state = *self.movement_state.current_state();
 
         self.controller.update(
-            config.character_controller.as_ref(),
+            &config.character_controller,
             settings,
             physics,
             input,

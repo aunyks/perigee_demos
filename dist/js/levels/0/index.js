@@ -133,7 +133,7 @@ Promise.all(assetsToLoad)
       mainScene.add(playerModelGltf.scene)
 
       const cabinMesh = new Mesh(
-        new BoxGeometry(1, 1, 2),
+        new BoxGeometry(0.6, 0.6, 2),
         new MeshBasicMaterial({ color: 0x0000ff })
       )
       mainScene.add(cabinMesh)
