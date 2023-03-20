@@ -3,7 +3,6 @@ use crate::shared::boom::Boom;
 use crate::shared::input::Input;
 use crate::shared::interactions::InteractionGroup;
 use crate::shared::settings::GameSettings;
-use crate::shared::vectors::*;
 use perigee::rapier3d::control::DynamicRayCastVehicleController;
 use perigee::{prelude::*, rapier3d::control::WheelTuning};
 use serde::{Deserialize, Serialize};
@@ -123,10 +122,11 @@ impl Car {
         );
         for (wheel_index, wheel) in self.rapier_vehicle.wheels_mut().iter_mut().enumerate() {
             let wheel_config = config.wheels[wheel_index];
+            wheel.engine_force = 0.0;
             // if wheel_config.receives_power {
             wheel.engine_force += config.throttle_force * input.throttle();
             // }
-            // wheel.engine_force -= config.brake_force * input.brake();
+            wheel.engine_force -= config.brake_force * input.brake();
             if wheel_config.steers_on_input {
                 wheel.steering = steer_angle.to_radians();
             }
