@@ -14,57 +14,101 @@ class Sim extends WasmUtils {
       on_level_event: (type) => {
         console.log('UNHANDLED LEVEL EVENT EMITTED: ', type)
       },
-      play_audio_hook: (sceneObjPtr, audioNamePtr, playbackRate) => {
-        const sceneObj = this.getCString(wasmMemory, sceneObjPtr)
-        const audioName = this.getCString(wasmMemory, audioNamePtr)
+      play_audio_hook: (
+        sceneObjPtr,
+        sceneObjLen,
+        audioNamePtr,
+        audioNameLen,
+        playbackRate
+      ) => {
+        const sceneObj = this.getString(wasmMemory, sceneObjPtr, sceneObjLen)
+        const audioName = this.getString(wasmMemory, audioNamePtr, audioNameLen)
         gameEventEmitter.emit('PLAY_AUDIO', [sceneObj, audioName, playbackRate])
       },
-      stop_audio_hook: (sceneObjPtr, audioNamePtr) => {
-        const sceneObj = this.getCString(wasmMemory, sceneObjPtr)
-        const audioName = this.getCString(wasmMemory, audioNamePtr)
+      stop_audio_hook: (
+        sceneObjPtr,
+        sceneObjLen,
+        audioNamePtr,
+        audioNameLen
+      ) => {
+        const sceneObj = this.getString(wasmMemory, sceneObjPtr, sceneObjLen)
+        const audioName = this.getString(wasmMemory, audioNamePtr, audioNameLen)
         gameEventEmitter.emit('STOP_AUDIO', [sceneObj, audioName])
       },
-      loop_audio_hook: (sceneObjPtr, audioNamePtr, playbackRate) => {
-        const sceneObj = this.getCString(wasmMemory, sceneObjPtr)
-        const audioName = this.getCString(wasmMemory, audioNamePtr)
+      loop_audio_hook: (
+        sceneObjPtr,
+        sceneObjLen,
+        audioNamePtr,
+        audioNameLen,
+        playbackRate
+      ) => {
+        const sceneObj = this.getString(wasmMemory, sceneObjPtr, sceneObjLen)
+        const audioName = this.getString(wasmMemory, audioNamePtr, audioNameLen)
         gameEventEmitter.emit('LOOP_AUDIO', [sceneObj, audioName, playbackRate])
       },
-      loop_animation_hook: (sceneObjNamePtr, animNamePtr, timeScale) => {
-        const sceneObjName = this.getCString(wasmMemory, sceneObjNamePtr)
-        const animName = this.getCString(wasmMemory, animNamePtr)
+      loop_animation_hook: (
+        sceneObjNamePtr,
+        sceneObjNameLen,
+        animNamePtr,
+        animNameLen,
+        timeScale
+      ) => {
+        const sceneObjName = this.getString(
+          wasmMemory,
+          sceneObjNamePtr,
+          sceneObjNameLen
+        )
+        const animName = this.getString(wasmMemory, animNamePtr, animNameLen)
         gameEventEmitter.emit('LOOP_ANIMATION', [
           sceneObjName,
           animName,
           timeScale,
         ])
       },
-      stop_animation_hook: (sceneObjNamePtr, animNamePtr) => {
-        const sceneObjName = this.getCString(wasmMemory, sceneObjNamePtr)
-        const animName = this.getCString(wasmMemory, animNamePtr)
+      stop_animation_hook: (
+        sceneObjNamePtr,
+        sceneObjNameLen,
+        animNamePtr,
+        animNameLen
+      ) => {
+        const sceneObjName = this.getString(
+          wasmMemory,
+          sceneObjNamePtr,
+          sceneObjNameLen
+        )
+        const animName = this.getString(wasmMemory, animNamePtr, animNameLen)
         gameEventEmitter.emit('STOP_ANIMATION', [sceneObjName, animName])
       },
-      assistive_device_announce_hook: (announcementMsgPtr) => {
-        const announcementMsg = this.getCString(wasmMemory, announcementMsgPtr)
+      assistive_device_announce_hook: (
+        announcementMsgPtr,
+        announcementMsgLen
+      ) => {
+        const announcementMsg = this.getString(
+          wasmMemory,
+          announcementMsgPtr,
+          announcementMsgLen
+        )
+        console.log(announcementMsg)
         gameEventEmitter.emit('AD_ANNOUNCEMENT', [announcementMsg])
       },
-      on_error: (stringPtr) => {
-        const str = this.getCString(wasmMemory, stringPtr)
+      on_error: (stringPtr, strLen) => {
+        const str = this.getString(wasmMemory, stringPtr, strLen)
         console.error(str)
       },
-      on_warn: (stringPtr) => {
-        const str = this.getCString(wasmMemory, stringPtr)
+      on_warn: (stringPtr, strLen) => {
+        const str = this.getString(wasmMemory, stringPtr, strLen)
         console.warn(str)
       },
-      on_debug: (stringPtr) => {
-        const str = this.getCString(wasmMemory, stringPtr)
+      on_debug: (stringPtr, strLen) => {
+        const str = this.getString(wasmMemory, stringPtr, strLen)
         console.log('[DEBUG]', str)
       },
-      on_info: (stringPtr) => {
-        const str = this.getCString(wasmMemory, stringPtr)
+      on_info: (stringPtr, strLen) => {
+        const str = this.getString(wasmMemory, stringPtr, strLen)
         console.log('[INFO]', str)
       },
-      on_trace: (stringPtr) => {
-        const str = this.getCString(wasmMemory, stringPtr)
+      on_trace: (stringPtr, strLen) => {
+        const str = this.getString(wasmMemory, stringPtr, strLen)
         console.log('[TRACE]', str)
       },
     }

@@ -57,6 +57,14 @@ class WasmUtils {
     return new TextDecoder().decode(strBytes)
   }
 
+  static getString(memoryTypedArray, memoryAddress, strLen) {
+    const view = new Uint8Array(memoryTypedArray.buffer)
+    const strBytes = new Uint8Array(
+      view.subarray(memoryAddress, memoryAddress + strLen)
+    )
+    return new TextDecoder().decode(strBytes)
+  }
+
   // static logHandlers(wasmMemory) {
   //   return {
   //     on_error: (stringPtr) => {
