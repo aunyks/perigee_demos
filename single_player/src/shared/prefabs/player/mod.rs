@@ -1,7 +1,7 @@
 use perigee::prelude::*;
 
 use crate::config::player::PlayerConfig;
-use crate::shared::controllers::character::utils::{CrouchState, PerspectiveMode};
+use crate::shared::controllers::character::utils::{CharacterPerspectiveMode, CrouchState};
 use crate::shared::controllers::CharacterController;
 use crate::shared::events::CharacterControllerEvent;
 use crate::shared::input::Input;
@@ -142,7 +142,7 @@ impl Player {
             }
 
             match self.controller.perspective_mode() {
-                PerspectiveMode::ThirdPersonCombat => {
+                CharacterPerspectiveMode::ThirdPersonCombat => {
                     let inversely_transformed_linvel =
                         body.position().inverse_transform_vector(&linvel);
                     self.movement_state.transition_to(
@@ -193,7 +193,8 @@ impl Player {
                         },
                     );
                 }
-                PerspectiveMode::ThirdPersonBasic | PerspectiveMode::FirstPerson => {
+                CharacterPerspectiveMode::ThirdPersonBasic
+                | CharacterPerspectiveMode::FirstPerson => {
                     self.movement_state.transition_to(
                         if self.controller.crouch_state() == &CrouchState::Upright {
                             if linvel.magnitude()

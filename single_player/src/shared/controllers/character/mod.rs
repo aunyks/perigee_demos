@@ -23,7 +23,7 @@ pub struct CharacterController {
     boom: Boom,
     default_boom: Boom,
     aim_boom: Boom,
-    perspective_mode: StateMachine<PerspectiveMode>,
+    perspective_mode: StateMachine<CharacterPerspectiveMode>,
     movement_mode: StateMachine<MovementMode>,
     body_linear_velocity: Vector3<f32>,
     rigid_body_handle: RigidBodyHandle,
@@ -122,11 +122,11 @@ impl CharacterController {
         &self.crouch_state.current_state()
     }
 
-    pub fn perspective_mode(&self) -> &PerspectiveMode {
+    pub fn perspective_mode(&self) -> &CharacterPerspectiveMode {
         &self.perspective_mode.current_state()
     }
 
-    pub fn set_perspective_mode(&mut self, new_perspective_mode: PerspectiveMode) {
+    pub fn set_perspective_mode(&mut self, new_perspective_mode: CharacterPerspectiveMode) {
         self.perspective_mode.transition_to(new_perspective_mode);
     }
 
@@ -193,8 +193,8 @@ impl CharacterController {
             );
         }
 
-        if self.perspective_mode == PerspectiveMode::FirstPerson
-            || (self.perspective_mode == PerspectiveMode::ThirdPersonCombat
+        if self.perspective_mode == CharacterPerspectiveMode::FirstPerson
+            || (self.perspective_mode == CharacterPerspectiveMode::ThirdPersonCombat
                 && self.body_linear_velocity().magnitude() > config.nonstationary_speed_threshold)
         {
             self.rotate_body(
@@ -204,7 +204,7 @@ impl CharacterController {
                 &mut physics.rigid_body_set,
                 delta_seconds,
             );
-            if self.perspective_mode == PerspectiveMode::FirstPerson {
+            if self.perspective_mode == CharacterPerspectiveMode::FirstPerson {
                 self.rotate_head(
                     input.rotate_up()
                         * (5.0 * f32::from(settings.up_down_look_sensitivity()) / 5.0).to_radians(),
@@ -214,7 +214,8 @@ impl CharacterController {
             }
         }
 
-        if self.is_grounded() && self.perspective_mode == PerspectiveMode::ThirdPersonBasic {
+        if self.is_grounded() && self.perspective_mode == CharacterPerspectiveMode::ThirdPersonBasic
+        {
             self.face_body_in_moving_direction(
                 config,
                 input.move_right(),
@@ -457,11 +458,11 @@ impl CharacterController {
         if self.perspective_mode.is_third_person() {
             let target_boom = if is_aiming {
                 self.perspective_mode
-                    .transition_to(PerspectiveMode::ThirdPersonCombat);
+                    .transition_to(CharacterPerspectiveMode::ThirdPersonCombat);
                 self.aim_boom
             } else {
                 self.perspective_mode
-                    .transition_to(PerspectiveMode::ThirdPersonBasic);
+                    .transition_to(CharacterPerspectiveMode::ThirdPersonBasic);
                 self.default_boom
             };
 
@@ -486,7 +487,7 @@ impl CharacterController {
             _ => 1.0,
         };
         if let Some(body) = rigid_body_set.get_mut(body_handle) {
-            if self.perspective_mode == PerspectiveMode::FirstPerson {
+            if self.perspective_mode == CharacterPerspectiveMode::FirstPerson {
                 let new_body_rotation =
                     body.position()
                         .rotation
@@ -499,7 +500,7 @@ impl CharacterController {
                     Isometry::from_parts(body.position().translation, new_body_rotation),
                     false,
                 );
-            } else if self.perspective_mode == PerspectiveMode::ThirdPersonCombat {
+            } else if self.perspective_mode == CharacterPerspectiveMode::ThirdPersonCombat {
                 let boom_yaw_isometry =
                     Isometry::from_parts(self.boom.translation, self.boom.z_rotation);
                 body.set_position(
@@ -599,10 +600,9 @@ impl CharacterController {
 
     pub fn camera_isometry(&self) -> Isometry<f32, Unit<Quaternion<f32>>, 3> {
         match self.perspective_mode.current_state() {
-            PerspectiveMode::ThirdPersonBasic | PerspectiveMode::ThirdPersonCombat => {
-                self.boom.end_isometry()
-            }
-            PerspectiveMode::FirstPerson => self.body_isometry() * self.head_isometry(),
+            CharacterPerspectiveMode::ThirdPersonBasic
+            | CharacterPerspectiveMode::ThirdPersonCombat => self.boom.end_isometry(),
+            CharacterPerspectiveMode::FirstPerson => self.body_isometry() * self.head_isometry(),
         }
     }
 
@@ -678,10 +678,11 @@ impl CharacterController {
         let body_handle = self.body_handle();
         if let Some(body) = rigid_body_set.get_mut(body_handle) {
             let pivot_isometry = match self.perspective_mode.current_state() {
-                PerspectiveMode::ThirdPersonBasic | PerspectiveMode::ThirdPersonCombat => {
+                CharacterPerspectiveMode::ThirdPersonBasic
+                | CharacterPerspectiveMode::ThirdPersonCombat => {
                     Isometry::from_parts(self.boom.translation, self.boom.z_rotation)
                 }
-                PerspectiveMode::FirstPerson => *body.position(),
+                CharacterPerspectiveMode::FirstPerson => *body.position(),
             };
             // The max velocity transformed by the isometry (position & orientation)
             // of the camera's boom.
@@ -757,8 +758,10 @@ impl CharacterController {
             movement_vector
         };
         let is_moving_forward = match self.perspective_mode.current_state() {
-            PerspectiveMode::FirstPerson | PerspectiveMode::ThirdPersonBasic => true,
-            PerspectiveMode::ThirdPersonCombat => {
+            CharacterPerspectiveMode::FirstPerson | CharacterPerspectiveMode::ThirdPersonBasic => {
+                true
+            }
+            CharacterPerspectiveMode::ThirdPersonCombat => {
                 capped_movement_vector.angle(&FORWARD_VECTOR).to_degrees()
                     <= config.max_sprint_forward_angle_threshold_discrete
             }

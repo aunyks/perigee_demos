@@ -50,7 +50,7 @@ pub enum CrouchState {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-pub enum PerspectiveMode {
+pub enum CharacterPerspectiveMode {
     #[serde(rename = "first-person")]
     FirstPerson,
     #[serde(rename = "third-person-basic")]
@@ -59,8 +59,9 @@ pub enum PerspectiveMode {
     ThirdPersonCombat,
 }
 
-impl PerspectiveMode {
+impl CharacterPerspectiveMode {
     pub fn is_third_person(&self) -> bool {
-        self == &PerspectiveMode::ThirdPersonBasic || self == &PerspectiveMode::ThirdPersonCombat
+        self == &CharacterPerspectiveMode::ThirdPersonBasic
+            || self == &CharacterPerspectiveMode::ThirdPersonCombat
     }
 }

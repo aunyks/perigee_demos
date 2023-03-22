@@ -1,4 +1,4 @@
-use crate::shared::controllers::character::utils::PerspectiveMode;
+use crate::shared::controllers::character::utils::CharacterPerspectiveMode;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
@@ -163,7 +163,7 @@ pub struct CharacterControllerConfig {
     pub rotate_body_to_movement_dir_lerp_factor: f32,
     /// The perspective mode at the start of the sim. The controller itself may
     /// change its mode later
-    pub initial_perspective_mode: PerspectiveMode,
+    pub initial_perspective_mode: CharacterPerspectiveMode,
     /// The movement mode of the character
     pub movement_mode: MovementMode,
 }
@@ -242,7 +242,7 @@ impl Default for CharacterControllerConfig {
             aim_boom_arm_yaw_angle: 20.0,
             tpcombat_boom_rotation_lerp_factor: 0.9,
             rotate_body_to_movement_dir_lerp_factor: 0.999,
-            initial_perspective_mode: PerspectiveMode::ThirdPersonBasic,
+            initial_perspective_mode: CharacterPerspectiveMode::ThirdPersonBasic,
             movement_mode: MovementMode::Discrete,
         }
     }
