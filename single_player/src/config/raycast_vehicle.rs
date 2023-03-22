@@ -13,7 +13,7 @@ pub struct WheelConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Getters)]
-pub struct CarConfig {
+pub struct RaycastVehicleConfig {
     pub cabin_half_width: f32,
     pub cabin_half_height: f32,
     pub cabin_half_length: f32,
@@ -38,7 +38,7 @@ pub struct CarConfig {
     pub wheel_radius: f32,
 }
 
-impl Default for CarConfig {
+impl Default for RaycastVehicleConfig {
     fn default() -> Self {
         let cabin_half_width = 0.3;
         let cabin_half_length = 1.0;
@@ -112,12 +112,12 @@ impl Default for CarConfig {
     }
 }
 
-impl From<&CarConfig> for WheelTuning {
-    fn from(car_config: &CarConfig) -> Self {
+impl From<&RaycastVehicleConfig> for WheelTuning {
+    fn from(vehicle_config: &RaycastVehicleConfig) -> Self {
         Self {
-            suspension_stiffness: car_config.suspension_spring_stiffness,
-            suspension_damping: car_config.suspension_spring_dampening,
-            friction_slip: car_config.wheel_grip,
+            suspension_stiffness: vehicle_config.suspension_spring_stiffness,
+            suspension_damping: vehicle_config.suspension_spring_dampening,
+            friction_slip: vehicle_config.wheel_grip,
             ..Default::default()
         }
     }

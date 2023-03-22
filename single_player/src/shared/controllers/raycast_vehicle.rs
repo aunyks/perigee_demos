@@ -1,4 +1,4 @@
-use crate::config::car::CarConfig;
+use crate::config::raycast_vehicle::RaycastVehicleConfig;
 use crate::shared::boom::Boom;
 use crate::shared::input::Input;
 use crate::shared::interactions::InteractionGroup;
@@ -12,7 +12,7 @@ fn default_rapier_vehicle() -> DynamicRayCastVehicleController {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Car {
+pub struct RaycastVehicle {
     camera_boom: Boom,
     rigid_body_handle: RigidBodyHandle,
     cabin_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
@@ -20,8 +20,8 @@ pub struct Car {
     rapier_vehicle: DynamicRayCastVehicleController,
 }
 
-impl FromConfig for Car {
-    type Config<'a> = &'a CarConfig;
+impl FromConfig for RaycastVehicle {
+    type Config<'a> = &'a RaycastVehicleConfig;
     fn from_config<'a>(config: Self::Config<'a>) -> Self {
         let rigid_body_handle = RigidBodyHandle::default();
         let rapier_vehicle = DynamicRayCastVehicleController::new(rigid_body_handle);
@@ -39,10 +39,10 @@ impl FromConfig for Car {
     }
 }
 
-impl Car {
+impl RaycastVehicle {
     pub fn add_to_physics_world(
         &mut self,
-        config: &CarConfig,
+        config: &RaycastVehicleConfig,
         rigid_body_set: &mut RigidBodySet,
         collider_set: &mut ColliderSet,
         initial_isometry: Option<Isometry<f32, UnitQuaternion<f32>, 3>>,
@@ -107,7 +107,7 @@ impl Car {
 
     pub fn update(
         &mut self,
-        config: &CarConfig,
+        config: &RaycastVehicleConfig,
         settings: &GameSettings,
         input: &Input,
         physics: &mut PhysicsWorld,
@@ -191,7 +191,7 @@ impl Car {
 
     fn prevent_camera_obstructions(
         camera_boom: &mut Boom,
-        config: &CarConfig,
+        config: &RaycastVehicleConfig,
         cabin_body: &RigidBody,
         query_pipeline: &QueryPipeline,
         rigid_body_set: &RigidBodySet,

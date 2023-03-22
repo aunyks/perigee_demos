@@ -1,4 +1,4 @@
-use crate::config::{CarConfig, PlayerConfig};
+use crate::config::{PlayerConfig, RaycastVehicleConfig};
 use perigee::{
     config::PhysicsConfig,
     toml,
@@ -15,7 +15,7 @@ pub struct Level0Config {
     #[serde(default)]
     pub player: PlayerConfig,
     #[serde(default)]
-    pub car: CarConfig,
+    pub car: RaycastVehicleConfig,
 }
 
 impl Default for Level0Config {
@@ -24,7 +24,7 @@ impl Default for Level0Config {
             level_event_queue_capacity: Some(5),
             physics: PhysicsConfig::default(),
             player: PlayerConfig::default(),
-            car: CarConfig::default(),
+            car: RaycastVehicleConfig::default(),
         }
     }
 }
