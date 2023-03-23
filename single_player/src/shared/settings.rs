@@ -9,10 +9,8 @@ use serde::{Deserialize, Serialize};
 /// These should be editable at runtime.
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, CopyGetters, Setters)]
 pub struct GameSettings {
-    #[serde(default)]
     #[getset(get_copy = "pub", set = "pub")]
     up_down_look_sensitivity: u8,
-    #[serde(default)]
     #[getset(get_copy = "pub", set = "pub")]
     left_right_look_sensitivity: u8,
 }

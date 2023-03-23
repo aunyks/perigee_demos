@@ -32,9 +32,7 @@ pub struct RaycastVehicleConfig {
     pub initial_boom_yaw_angle: f32,
     #[getset(get = "pub")]
     pub wheels: Vec<WheelConfig>,
-    #[serde(default)]
     pub suspension_rest_length: f32,
-    #[serde(default)]
     pub wheel_radius: f32,
 }
 
