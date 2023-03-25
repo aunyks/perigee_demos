@@ -48,7 +48,8 @@ const adAnnounce = bindAssistiveDeviceAnnouncer(
 )
 adAnnounce(loadingContainer.innerText)
 
-const simulation = await Sim.fromWasmBinary('/wasm/levels/0/sim.wasm')
+const simulation = new Sim()
+await simulation.loadWasm('/wasm/levels/0/sim.wasm')
 
 const assetsToLoad = [
   simulation,

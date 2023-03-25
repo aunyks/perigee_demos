@@ -5,7 +5,7 @@ import { GameEvents } from './events.js'
 //
 // Having a simulation extend this class instead of
 // importing each function individually takes less mind share imo.
-class WasmUtils {
+class SimUtils {
   constructor() {
     this.events = new GameEvents()
     this._wasmExports = null
@@ -237,4 +237,4 @@ class WasmUtils {
   }
 }
 
-export { WasmUtils }
+export { SimUtils }
