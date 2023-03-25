@@ -1,5 +1,5 @@
 use crate::shared::{
-    controllers::RaycastVehicle, input::Input, prefabs::Player, settings::GameSettings,
+    controllers::RaycastVehicleController, input::Input, prefabs::Player, settings::GameSettings,
 };
 use crate::{config::Level0Config, shared::events::CharacterControllerEvent};
 use events::Level0Event;
@@ -16,7 +16,7 @@ pub struct Sim<'a> {
     pub physics: PhysicsWorld,
     pois: PointsOfInterest,
     pub player: Player,
-    pub car: RaycastVehicle,
+    pub car: RaycastVehicleController,
     scene_gltf_bytes: &'a [u8],
     player_gltf_bytes: &'a [u8],
     #[serde(skip)]
@@ -31,7 +31,7 @@ impl<'a> FromConfig for Sim<'a> {
     fn from_config<'b>(config: Self::Config<'b>) -> Self {
         let physics = PhysicsWorld::from_config(&config.physics);
         let player = Player::from_config(&config.player);
-        let car = RaycastVehicle::from_config(&config.car);
+        let car = RaycastVehicleController::from_config(&config.car);
 
         let level_event_channel = if let Some(queue_cap) = &config.level_event_queue_capacity {
             EventChannel::with_capacity(*queue_cap)

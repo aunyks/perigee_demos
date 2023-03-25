@@ -12,21 +12,21 @@ fn default_rapier_vehicle() -> DynamicRayCastVehicleController {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct RaycastVehicle {
+pub struct RaycastVehicleController {
     camera_boom: Boom,
-    rigid_body_handle: RigidBodyHandle,
+    cabin_body_handle: RigidBodyHandle,
     cabin_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
     #[serde(skip, default = "default_rapier_vehicle")]
     rapier_vehicle: DynamicRayCastVehicleController,
 }
 
-impl FromConfig for RaycastVehicle {
+impl FromConfig for RaycastVehicleController {
     type Config<'a> = &'a RaycastVehicleConfig;
     fn from_config<'a>(config: Self::Config<'a>) -> Self {
-        let rigid_body_handle = RigidBodyHandle::default();
-        let rapier_vehicle = DynamicRayCastVehicleController::new(rigid_body_handle);
+        let cabin_body_handle = RigidBodyHandle::default();
+        let rapier_vehicle = DynamicRayCastVehicleController::new(cabin_body_handle);
         Self {
-            rigid_body_handle,
+            cabin_body_handle,
             rapier_vehicle,
             cabin_isometry: Isometry::default(),
             camera_boom: Boom::new(
@@ -39,7 +39,7 @@ impl FromConfig for RaycastVehicle {
     }
 }
 
-impl RaycastVehicle {
+impl RaycastVehicleController {
     pub fn add_to_physics_world(
         &mut self,
         config: &RaycastVehicleConfig,
@@ -73,11 +73,11 @@ impl RaycastVehicle {
         .density(config.mass)
         .build();
 
-        let rigid_body_handle = rigid_body_set.insert(rigid_body);
-        collider_set.insert_with_parent(cabin_collider, rigid_body_handle, rigid_body_set);
-        self.rigid_body_handle = rigid_body_handle;
+        let cabin_body_handle = rigid_body_set.insert(rigid_body);
+        collider_set.insert_with_parent(cabin_collider, cabin_body_handle, rigid_body_set);
+        self.cabin_body_handle = cabin_body_handle;
 
-        self.rapier_vehicle = DynamicRayCastVehicleController::new(self.rigid_body_handle);
+        self.rapier_vehicle = DynamicRayCastVehicleController::new(self.cabin_body_handle);
         let wheel_tuning = WheelTuning::from(config);
         for wheel in config.wheels.iter() {
             self.rapier_vehicle.add_wheel(
@@ -94,7 +94,7 @@ impl RaycastVehicle {
     }
 
     pub fn body_handle(&self) -> RigidBodyHandle {
-        self.rigid_body_handle
+        self.cabin_body_handle
     }
 
     pub fn cabin_isometry(&self) -> &Isometry<f32, UnitQuaternion<f32>, 3> {
@@ -103,67 +103,6 @@ impl RaycastVehicle {
 
     pub fn camera_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
         self.camera_boom.end_isometry()
-    }
-
-    pub fn update(
-        &mut self,
-        config: &RaycastVehicleConfig,
-        settings: &GameSettings,
-        input: &Input,
-        physics: &mut PhysicsWorld,
-        delta_seconds: f32,
-    ) {
-        let cabin_body_handle = self.body_handle();
-
-        let steer_angle = lerp(
-            config.wheel_left_turn_angle,
-            config.wheel_right_turn_angle,
-            remap(input.steer(), -1.0, 1.0, 0.0, 1.0),
-        );
-        for (wheel_index, wheel) in self.rapier_vehicle.wheels_mut().iter_mut().enumerate() {
-            let wheel_config = config.wheels[wheel_index];
-            wheel.engine_force = 0.0;
-            // if wheel_config.receives_power {
-            wheel.engine_force += config.throttle_force * input.throttle();
-            // }
-            wheel.engine_force -= config.brake_force * input.brake();
-            if wheel_config.steers_on_input {
-                wheel.steering = steer_angle.to_radians();
-            }
-        }
-
-        self.rapier_vehicle.update_vehicle(
-            delta_seconds,
-            &mut physics.rigid_body_set,
-            &physics.collider_set,
-            &physics.query_pipeline,
-            QueryFilter::exclude_dynamic().exclude_rigid_body(cabin_body_handle),
-        );
-
-        if let Some(cabin_body) = physics.rigid_body_set.get(cabin_body_handle) {
-            self.cabin_isometry = *cabin_body.position();
-
-            Self::update_boom_isometry(
-                &mut self.camera_boom,
-                cabin_body,
-                -input.rotate_right()
-                    * (2.5 * f32::from(settings.left_right_look_sensitivity()) / 5.0).to_radians(),
-                input.rotate_up()
-                    * (5.0 * f32::from(settings.up_down_look_sensitivity()) / 5.0).to_radians(),
-                config.max_look_up_angle,
-                config.min_look_up_angle,
-            );
-
-            Self::prevent_camera_obstructions(
-                &mut self.camera_boom,
-                &config,
-                cabin_body,
-                &physics.query_pipeline,
-                &physics.rigid_body_set,
-                &physics.collider_set,
-                QueryFilter::new().exclude_rigid_body(cabin_body_handle),
-            );
-        }
     }
 
     fn update_boom_isometry(
@@ -216,6 +155,65 @@ impl RaycastVehicle {
             camera_boom.set_length(hit_toi - 0.03);
         } else {
             camera_boom.set_length(config.max_boom_length);
+        }
+    }
+
+    pub fn update(
+        &mut self,
+        config: &RaycastVehicleConfig,
+        settings: &GameSettings,
+        input: &Input,
+        physics: &mut PhysicsWorld,
+        delta_seconds: f32,
+    ) {
+        let steer_angle = lerp(
+            config.wheel_left_turn_angle,
+            config.wheel_right_turn_angle,
+            remap(input.steer(), -1.0, 1.0, 0.0, 1.0),
+        );
+        for (wheel_index, wheel) in self.rapier_vehicle.wheels_mut().iter_mut().enumerate() {
+            let wheel_config = config.wheels[wheel_index];
+            wheel.engine_force = 0.0;
+            // if wheel_config.receives_power {
+            wheel.engine_force += config.throttle_force * input.throttle();
+            // }
+            wheel.engine_force -= config.brake_force * input.brake();
+            if wheel_config.steers_on_input {
+                wheel.steering = steer_angle.to_radians();
+            }
+        }
+
+        self.rapier_vehicle.update_vehicle(
+            delta_seconds,
+            &mut physics.rigid_body_set,
+            &physics.collider_set,
+            &physics.query_pipeline,
+            QueryFilter::exclude_dynamic().exclude_rigid_body(self.cabin_body_handle),
+        );
+
+        if let Some(cabin_body) = physics.rigid_body_set.get(self.cabin_body_handle) {
+            self.cabin_isometry = *cabin_body.position();
+
+            Self::update_boom_isometry(
+                &mut self.camera_boom,
+                cabin_body,
+                -input.rotate_right()
+                    * (2.5 * f32::from(settings.left_right_look_sensitivity()) / 5.0).to_radians(),
+                input.rotate_up()
+                    * (5.0 * f32::from(settings.up_down_look_sensitivity()) / 5.0).to_radians(),
+                config.max_look_up_angle,
+                config.min_look_up_angle,
+            );
+
+            Self::prevent_camera_obstructions(
+                &mut self.camera_boom,
+                &config,
+                cabin_body,
+                &physics.query_pipeline,
+                &physics.rigid_body_set,
+                &physics.collider_set,
+                QueryFilter::new().exclude_rigid_body(self.cabin_body_handle),
+            );
         }
     }
 }
