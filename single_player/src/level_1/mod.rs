@@ -48,7 +48,7 @@ impl<'a> FromConfig for Sim<'a> {
             physics,
             settings: GameSettings::default(),
             input: Input::default(),
-            scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/0/scene.glb"),
+            scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/1/scene.glb"),
             player_gltf_bytes: include_bytes!("../../../assets/gltf/shared/player-character.glb"),
             level_event_channel: level_event_channel,
             pois: PointsOfInterest::default(),
