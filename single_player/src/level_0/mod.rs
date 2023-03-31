@@ -1,12 +1,13 @@
-use crate::shared::{
-    controllers::RaycastVehicleController, input::Input, prefabs::Player, settings::GameSettings,
-};
+use crate::shared::descriptor::Descriptor;
+use crate::shared::{input::Input, prefabs::Player, settings::GameSettings};
 use crate::{config::Level0Config, shared::events::CharacterControllerEvent};
 use events::Level0Event;
+use moving_platform::MovingPlatform;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
 
 mod events;
+mod moving_platform;
 
 #[derive(Serialize, Deserialize)]
 pub struct Sim<'a> {
@@ -15,10 +16,12 @@ pub struct Sim<'a> {
     pub settings: GameSettings,
     pub physics: PhysicsWorld,
     pois: PointsOfInterest,
-    pub player: Player,
-    pub car: RaycastVehicleController,
+    pub player: Player<'a>,
+    moving_platforms: [MovingPlatform<'a>; 2],
     scene_gltf_bytes: &'a [u8],
     player_gltf_bytes: &'a [u8],
+    #[serde(skip)]
+    animation_manager: AnimationManager,
     #[serde(skip)]
     level_event_channel: EventChannel<Level0Event>,
     #[serde(skip)]
@@ -31,7 +34,6 @@ impl<'a> FromConfig for Sim<'a> {
     fn from_config<'b>(config: Self::Config<'b>) -> Self {
         let physics = PhysicsWorld::from_config(&config.physics);
         let player = Player::from_config(&config.player);
-        let car = RaycastVehicleController::from_config(&config.car);
 
         let level_event_channel = if let Some(queue_cap) = &config.level_event_queue_capacity {
             EventChannel::with_capacity(*queue_cap)
@@ -43,7 +45,6 @@ impl<'a> FromConfig for Sim<'a> {
             version: (0, 0, 0),
             config,
             player,
-            car,
             physics,
             settings: GameSettings::default(),
             input: Input::default(),
@@ -51,6 +52,11 @@ impl<'a> FromConfig for Sim<'a> {
             player_gltf_bytes: include_bytes!("../../../assets/gltf/shared/player-character.glb"),
             level_event_channel: level_event_channel,
             pois: PointsOfInterest::default(),
+            animation_manager: AnimationManager::default(),
+            moving_platforms: [
+                MovingPlatform::new(Descriptor::from_name("Plat 3"), "Plat 3 Sensor"),
+                MovingPlatform::new(Descriptor::from_name("Plat 3 2"), "Plat 3 Sensor 2"),
+            ],
         }
     }
 
@@ -88,20 +94,32 @@ impl<'a> Sim<'a> {
         self.physics.load_from_gltf(&scene_gltf).unwrap();
         self.pois.load_from_gltf(&scene_gltf).unwrap();
 
+        self.animation_manager
+            .extend(AnimationManager::import_from_gltf(&scene_gltf));
+
         self.player.initialize(
             &self.config.player,
             &Gltf::from_slice(self.player_gltf_bytes).unwrap(),
             &mut self.physics,
-            None,
+            self.pois.point_with_name("Player Start").cloned(),
             Some(String::from("PLAYER")),
         );
 
-        self.car.add_to_physics_world(
-            &self.config.car,
-            &mut self.physics.rigid_body_set,
-            &mut self.physics.collider_set,
-            None,
-        );
+        for platform in &mut self.moving_platforms {
+            platform.initialize(
+                vec![
+                    self.pois
+                        .point_with_name("Plat 3 Start Point")
+                        .cloned()
+                        .unwrap(),
+                    self.pois
+                        .point_with_name("Plat 3 End Point")
+                        .cloned()
+                        .unwrap(),
+                ],
+                &mut self.physics,
+            );
+        }
     }
 }
 
@@ -131,7 +149,8 @@ impl<'a> Sim<'a> {
     pub fn prop_isometry(&self, prop_name: &str) -> &Isometry<f32, UnitQuaternion<f32>, 3> {
         let prop_body_handle = self
             .physics
-            .rigid_body_handle_with_name(prop_name)
+            .named_rigid_bodies
+            .handle_with_name(prop_name)
             .expect("No prop has provided name.");
         self.physics
             .rigid_body_set
@@ -200,17 +219,12 @@ impl<'a> Sim<'a> {
     #[slot_return]
     pub fn camera_global_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
         // The player's head position
-        self.car.camera_isometry()
+        self.player.controller.camera_isometry()
     }
 
     #[slot_return]
     pub fn player_body_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
         *self.player.body_isometry()
-    }
-
-    #[slot_return]
-    pub fn car_cabin_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
-        *self.car.cabin_isometry()
     }
 
     // Making this an FFI-only wrapper because if the WASM has a
@@ -226,6 +240,8 @@ impl<'a> Sim<'a> {
 
     /// Step the game simulation by the provided number of seconds.
     pub fn step(&mut self, delta_seconds: f32) {
+        self.animation_manager.update(delta_seconds);
+
         self.player.update(
             &self.config.player,
             &self.settings,
@@ -234,17 +250,11 @@ impl<'a> Sim<'a> {
             delta_seconds,
         );
 
-        self.car.update(
-            &self.config.car,
-            &self.settings,
-            &self.input,
-            &mut self.physics,
-            delta_seconds,
-        );
+        for platform in &mut self.moving_platforms {
+            platform.update(&mut self.physics, delta_seconds);
+        }
 
         self.physics.step(delta_seconds);
-
-        self.physics.eviscerate_event_channels().unwrap();
 
         // Ease the pressure of this channel
         while let Ok(player_event) = self.player.get_event() {

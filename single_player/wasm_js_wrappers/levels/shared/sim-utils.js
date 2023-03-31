@@ -10,6 +10,7 @@ class SimUtils {
     this.events = new GameEvents()
     this._wasmExports = null
     this._wasmMemory = null
+    this._textDecoder = new TextDecoder()
     // Maintain a map between strings and their pointers in WASM memory
     // so that we're not creating the same string multiple times, saving
     // a few bytes of WASM memory here and there.
@@ -113,7 +114,7 @@ class SimUtils {
     const strBytes = new Uint8Array(
       view.subarray(memoryAddress, terminalByteAddress)
     )
-    return new TextDecoder().decode(strBytes)
+    return this._textDecoder.decode(strBytes)
   }
 
   getString(memoryAddress, strLen) {
@@ -121,7 +122,7 @@ class SimUtils {
     const strBytes = new Uint8Array(
       view.subarray(memoryAddress, memoryAddress + strLen)
     )
-    return new TextDecoder().decode(strBytes)
+    return this._textDecoder.decode(strBytes)
   }
 
   logHandlers() {

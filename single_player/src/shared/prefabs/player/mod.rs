@@ -3,6 +3,7 @@ use perigee::prelude::*;
 use crate::config::player::PlayerConfig;
 use crate::shared::controllers::character::utils::{CharacterPerspectiveMode, CrouchState};
 use crate::shared::controllers::CharacterController;
+use crate::shared::descriptor::Descriptor;
 use crate::shared::events::CharacterControllerEvent;
 use crate::shared::input::Input;
 use crate::shared::settings::GameSettings;
@@ -13,10 +14,9 @@ use utils::{MovementState, WalkDirection};
 mod utils;
 
 #[derive(Serialize, Deserialize)]
-pub struct Player {
+pub struct Player<'a> {
+    descriptor: Descriptor<'a>,
     pub controller: CharacterController,
-    scene_object_name: String,
-
     movement_state: StateMachine<MovementState>,
     #[serde(skip)]
     event_channel: EventChannel<CharacterControllerEvent>,
@@ -24,14 +24,14 @@ pub struct Player {
     animation_manager: AnimationManager,
 }
 
-impl FromConfig for Player {
-    type Config<'a> = &'a PlayerConfig;
+impl<'a> FromConfig for Player<'a> {
+    type Config<'b> = &'b PlayerConfig;
 
-    fn from_config<'a>(config: Self::Config<'a>) -> Self {
+    fn from_config<'b>(config: Self::Config<'b>) -> Self {
         Self {
             controller: CharacterController::from_config(&config.character_controller),
             // [P]re-[C]onfigured [P]layer
-            scene_object_name: String::from("PCP"),
+            descriptor: Descriptor::from_name("PCP"),
             movement_state: StateMachine::new(MovementState::default()),
             event_channel: EventChannel::with_capacity(config.event_queue_capacity),
             animation_manager: AnimationManager::default(),
@@ -39,17 +39,17 @@ impl FromConfig for Player {
     }
 }
 
-impl Player {
+impl<'a> Player<'a> {
     pub fn initialize(
         &mut self,
         config: &PlayerConfig,
         gltf: &Gltf,
         physics: &mut PhysicsWorld,
         initial_isometry: Option<Isometry<f32, Unit<Quaternion<f32>>, 3>>,
-        scene_object_name: Option<String>,
+        descriptor_string: Option<impl Into<Descriptor<'a>>>,
     ) {
-        if let Some(new_object_name) = scene_object_name {
-            self.scene_object_name = new_object_name;
+        if let Some(new_object_name) = descriptor_string {
+            self.descriptor = new_object_name.into();
         }
         self.controller.add_to_physics_world(
             &config.character_controller,
@@ -57,6 +57,10 @@ impl Player {
             &mut physics.collider_set,
             initial_isometry,
         );
+
+        physics
+            .named_rigid_bodies
+            .insert(self.descriptor.as_ref(), self.controller.body_handle());
 
         let animation_manager = AnimationManager::import_from_gltf(gltf);
         self.animation_manager.extend(animation_manager);
@@ -78,7 +82,7 @@ impl Player {
             .on_frame(15, on_run_step);
         self.animation_manager.loop_animation(
             &self.movement_state.current_state().to_string(),
-            Some(&self.scene_object_name().clone()),
+            Some(&self.scene_object_name().to_owned()),
         );
     }
 
@@ -105,19 +109,19 @@ impl Player {
         if *self.movement_state.current_state() != previous_tick_movement_state {
             self.animation_manager.stop_animation(
                 &previous_tick_movement_state.to_string(),
-                Some(&self.scene_object_name().clone()),
+                Some(&self.scene_object_name().to_owned()),
             );
             self.animation_manager.loop_animation(
                 &self.movement_state.current_state().to_string(),
-                Some(&self.scene_object_name().clone()),
+                Some(&self.scene_object_name().to_owned()),
             );
         }
 
         self.animation_manager.update(delta_seconds);
     }
 
-    pub fn scene_object_name(&self) -> &String {
-        &self.scene_object_name
+    pub fn scene_object_name(&self) -> &str {
+        self.descriptor.object_name()
     }
 
     pub fn body_isometry(&self) -> &Isometry<f32, UnitQuaternion<f32>, 3> {

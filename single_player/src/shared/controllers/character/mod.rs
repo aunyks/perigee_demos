@@ -228,7 +228,7 @@ impl CharacterController {
         let (_capsule_half_height, capsule_radius) = self.capsule_values(config);
 
         let previous_tick_grounded_state = self.is_grounded();
-        self.determine_grounded_states(
+        self.determine_grounded_state(
             config,
             &mut physics.rigid_body_set,
             &mut physics.query_pipeline,
@@ -249,11 +249,6 @@ impl CharacterController {
         if previous_tick_grounded_state != self.is_grounded() {
             // We've just landed
             if self.is_grounded() {
-                // Sometimes if we're trying to jump as soon as we land,
-                // the upward movement is canceled by gravity, resulting in a jump
-                // that doesn't move vertically. Zeroing out the vertical velocity
-                // fixes that and lets us jump up immediately again
-                self.nullify_vertical_movement(&mut physics.rigid_body_set);
                 // We can't be grounded and wallrunning at the same time
                 self.wallrunning_state.transition_to(WallRunning::None);
                 self.event_channel.send(CharacterControllerEvent::Landed);
@@ -849,17 +844,10 @@ impl CharacterController {
             // If the body is moving down enough, then
             // we cancel the vertical velocity so the jump impulse isn't
             // canceled out by the existing downward movement.
-            if matches!(
-                self.wallrunning_state.current_state(),
-                WallRunning::OnRight(_) | WallRunning::OnLeft(_)
-            ) && current_velocity.angle(&DOWN_VECTOR).to_degrees()
-                <= config.jump_wallrunning_down_velocity_angle_threshold
-            {
-                body.set_linvel(
-                    Vector3::new(current_velocity.x, 0.0, current_velocity.z),
-                    true,
-                );
-            }
+            body.set_linvel(
+                Vector3::new(current_velocity.x, 0.0, current_velocity.z),
+                true,
+            );
             body.apply_impulse(transformed_jump_vector * body.mass(), true);
         }
     }
@@ -871,19 +859,9 @@ impl CharacterController {
         }
     }
 
-    /// Set the body's vertical velocity to 0.
-    fn nullify_vertical_movement(&self, rigid_body_set: &mut RigidBodySet) {
-        let body_handle = self.body_handle();
-        if let Some(body) = rigid_body_set.get_mut(body_handle) {
-            let mut linvel = *body.linvel();
-            linvel.y = 0.0;
-            body.set_linvel(linvel, true);
-        }
-    }
-
     /// Determine whether the character controller has a collider just below it, functioning
     /// as ground. Also calculate the normal of this surface.
-    fn determine_grounded_states(
+    fn determine_grounded_state(
         &mut self,
         config: &CharacterControllerConfig,
         rigid_body_set: &mut RigidBodySet,

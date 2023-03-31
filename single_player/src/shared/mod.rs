@@ -1,5 +1,6 @@
 pub mod boom;
 pub mod controllers;
+pub mod descriptor;
 pub mod events;
 pub mod input;
 pub mod interactions;

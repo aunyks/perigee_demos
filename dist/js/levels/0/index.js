@@ -1,6 +1,9 @@
 import {
   Object3D,
   AmbientLight,
+  HemisphereLight,
+  DirectionalLight,
+  PointLight,
   Scene,
   WebGLRenderer,
   AnimationMixer,
@@ -113,33 +116,25 @@ Promise.all(assetsToLoad)
 
       const playerHeight = 1.83
       const playerRadius = 0.4
-      const playerMesh = new Mesh(
+      const playerCollider = new Mesh(
         new CapsuleGeometry(playerRadius, playerHeight - playerRadius * 2),
         new MeshBasicMaterial({ color: 0xffff00, wireframe: true })
       )
       if (isInDebugMode()) {
-        mainScene.add(playerMesh)
+        mainScene.add(playerCollider)
       }
 
       sceneGltf.scene.traverse((obj) => {
-        if (obj.isMesh && !obj.userData.simSettings.graphics.enabled) {
-          obj.removeFromParent()
+        if (!!obj.isMesh && !obj.userData.simSettings.graphics.enabled) {
           obj.geometry.dispose()
           obj.material.dispose()
-          obj = undefined
+          obj.visible = false
         }
       })
 
       mainScene.add(sceneGltf.scene)
       mainScene.add(playerModelGltf.scene)
-
-      const cabinMesh = new Mesh(
-        new BoxGeometry(0.6, 0.6, 2),
-        new MeshBasicMaterial({ color: 0x0000ff })
-      )
-      mainScene.add(cabinMesh)
-
-      mainScene.add(new AmbientLight())
+      mainScene.add(new DirectionalLight(0xffffff, 10))
 
       const animatedCamera = animatedCameraGltf.cameras[0]
       animatedCamera.fov = 35
@@ -363,14 +358,10 @@ Promise.all(assetsToLoad)
           cameraRig.quaternion.fromArray(camGlobalRotation)
 
           const [playerRotation, playerTranslation] = sim.playerBodyIsometry()
-          playerMesh.position.fromArray(playerTranslation)
-          playerMesh.quaternion.fromArray(playerRotation)
+          playerCollider.position.fromArray(playerTranslation)
+          playerCollider.quaternion.fromArray(playerRotation)
           playerModelGltf.scene.position.fromArray(playerTranslation)
           playerModelGltf.scene.quaternion.fromArray(playerRotation)
-
-          const [cabinRotation, cabinTranslation] = sim.carCabinIsometry()
-          cabinMesh.position.fromArray(cabinTranslation)
-          cabinMesh.quaternion.fromArray(cabinRotation)
 
           // Make sure the background environment follows the camera. We don't have to worry
           // about it occluding anything because every object in it has a low render order
