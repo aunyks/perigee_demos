@@ -5,23 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::shared::descriptor::Descriptor;
 
-enum PlatformSensorEvent {
-    OnIntersectionStart(ColliderHandle),
-    OnIntersectionEnd(ColliderHandle),
-}
-struct PlatformSensorListener(Sender<PlatformSensorEvent>);
-impl PhysicsEventListener for PlatformSensorListener {
-    fn on_intersection_start(&mut self, other: &ColliderHandle) {
-        let _send_result = self
-            .0
-            .send(PlatformSensorEvent::OnIntersectionStart(*other));
-    }
-
-    fn on_intersection_end(&mut self, other: &ColliderHandle) {
-        let _send_result = self.0.send(PlatformSensorEvent::OnIntersectionEnd(*other));
-    }
-}
-
 #[derive(Serialize, Deserialize)]
 enum PlatformOperation {
     Transitioning,
@@ -46,7 +29,7 @@ pub struct MovingPlatform<'a> {
     wait_duration: Duration,
     sensor_local_iso: Isometry<f32, UnitQuaternion<f32>, 3>,
     #[serde(skip)]
-    sensor_event_channel: EventChannel<PlatformSensorEvent>,
+    sensor_event_channel: ColliderEventChannel,
 }
 
 impl<'a> MovingPlatform<'a> {
@@ -64,7 +47,7 @@ impl<'a> MovingPlatform<'a> {
                 operation: StateMachine::new(PlatformOperation::Transitioning),
                 clock: PassiveClock::new(),
             },
-            sensor_event_channel: EventChannel::with_capacity(0),
+            sensor_event_channel: ColliderEventChannel::with_capacity(0),
         }
     }
 
@@ -78,7 +61,7 @@ impl<'a> MovingPlatform<'a> {
         if let Some(sensor_handle) = physics.named_sensors.handle_with_name(self.sensor_name) {
             physics.listen_to_collider(
                 *sensor_handle,
-                PlatformSensorListener(self.sensor_event_channel.clone_sender()),
+                ColliderEventRelayer::from(self.sensor_event_channel.clone_sender()),
             );
         }
         if let Some(sensor) = physics
@@ -185,7 +168,7 @@ impl<'a> MovingPlatform<'a> {
     pub fn handle_sensor_events(&mut self, physics: &PhysicsWorld) {
         while let Ok(sensor_event) = self.sensor_event_channel.get_message() {
             match sensor_event {
-                PlatformSensorEvent::OnIntersectionStart(other_handle) => {
+                ColliderEvent::IntersectionStart(other_handle) => {
                     if let Some(rigid_body_handle) = physics
                         .collider_set
                         .get(other_handle)
@@ -200,7 +183,7 @@ impl<'a> MovingPlatform<'a> {
                         }
                     }
                 }
-                PlatformSensorEvent::OnIntersectionEnd(other_handle) => {
+                ColliderEvent::IntersectionEnd(other_handle) => {
                     if let Some(rigid_body_handle) = physics
                         .collider_set
                         .get(other_handle)
@@ -215,6 +198,7 @@ impl<'a> MovingPlatform<'a> {
                         }
                     }
                 }
+                _ => {}
             }
         }
     }
