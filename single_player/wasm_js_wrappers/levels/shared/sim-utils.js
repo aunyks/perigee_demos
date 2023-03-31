@@ -5,7 +5,7 @@ import { GameEvents } from './events.js'
 //
 // Having a simulation extend this class instead of
 // importing each function individually takes less mind share imo.
-class SimUtils {
+class Simulation {
   constructor() {
     this.events = new GameEvents()
     this._wasmExports = null
@@ -102,7 +102,7 @@ class SimUtils {
   }
 
   // This is static because it's used in the WASM imports
-  // which are created before a Sim is constructed
+  // which are created before a Level0Sim is constructed
   getCString(memoryTypedArray, memoryAddress) {
     const view = new Uint8Array(memoryTypedArray.buffer)
 
@@ -238,4 +238,4 @@ class SimUtils {
   }
 }
 
-export { SimUtils }
+export { Simulation }

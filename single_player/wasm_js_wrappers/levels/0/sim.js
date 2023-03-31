@@ -1,6 +1,6 @@
-import { SimUtils } from '../shared/sim-utils.js'
+import { Simulation } from '../shared/sim-utils.js'
 
-class Sim extends SimUtils {
+class Level0Sim extends Simulation {
   constructor() {
     super()
     this._simPointer = null
@@ -148,4 +148,4 @@ class Sim extends SimUtils {
   }
 }
 
-export { Sim }
+export { Level0Sim }

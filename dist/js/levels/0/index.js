@@ -26,7 +26,7 @@ import { UnrealBloomPass } from '/js/graphics/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from '/js/graphics/postprocessing/ShaderPass.js'
 import { FXAAShader } from '/js/graphics/postprocessing/shaders/FXAAShader.js'
 import { GameInput } from '/js/input/game-input.module.js'
-import { Sim } from '/js/levels/0/Sim.module.js'
+import { Level0Sim } from '/js/levels/0/Level0Sim.module.js'
 import {
   randomIntFromZero,
   bindAssistiveDeviceAnnouncer,
@@ -51,7 +51,7 @@ const adAnnounce = bindAssistiveDeviceAnnouncer(
 )
 adAnnounce(loadingContainer.innerText)
 
-const simulation = new Sim()
+const simulation = new Level0Sim()
 await simulation.loadWasm('/wasm/levels/0/sim.wasm')
 
 const assetsToLoad = [

@@ -101,7 +101,7 @@ class WasmUtils {
   }
 
   // This is static because it's used in the WASM imports
-  // which are created before a Sim is constructed
+  // which are created before a Level0Sim is constructed
   getCString(memoryTypedArray, memoryAddress) {
     const view = new Uint8Array(memoryTypedArray.buffer)
 

@@ -74,7 +74,7 @@ fs.readdirSync(gltfLevelsPath).forEach((fileOrDir) => {
       'js',
       'levels',
       levelName,
-      'Sim.module.js',
+      'Level0Sim.module.js',
     ])
 
     // Copy the level's JavaScript wrapper from the WASM crate / module
