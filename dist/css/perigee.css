@@ -25,6 +25,11 @@ label {
   color: var(--color);
 }
 
+button[disabled] {
+  pointer-events: auto;
+  cursor: not-allowed;
+}
+
 @media only screen and (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     --primary: #fab700;
