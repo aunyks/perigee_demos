@@ -20,20 +20,20 @@ pub struct CharacterController {
     head_z_rotation: UnitQuaternion<f32>,
     head_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
     body_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
-    boom: Boom,
+    pub boom: Boom,
     default_boom: Boom,
     aim_boom: Boom,
-    perspective_mode: StateMachine<CharacterPerspectiveMode>,
-    movement_mode: StateMachine<MovementMode>,
+    pub perspective_mode: StateMachine<CharacterPerspectiveMode>,
+    pub movement_mode: StateMachine<MovementMode>,
     body_linear_velocity: Vector3<f32>,
     rigid_body_handle: RigidBodyHandle,
     collider_handle: ColliderHandle,
-    wallrunning_state: StateMachine<WallRunning>,
-    crouch_state: StateMachine<CrouchState>,
+    pub wallrunning_state: StateMachine<WallRunning>,
+    pub crouch_state: StateMachine<CrouchState>,
     ground_normal: Option<Vector3<f32>>,
     coyote_timer: PassiveClock,
     jump_cooldown_timer: PassiveClock,
-    sliding_state: StateMachine<SlidingState>,
+    pub sliding_state: StateMachine<SlidingState>,
     #[serde(skip)]
     event_channel: EventChannel<CharacterControllerEvent>,
 }
@@ -116,18 +116,6 @@ impl CharacterController {
                 config.capsule_crouched_radius,
             ),
         }
-    }
-
-    pub fn crouch_state(&self) -> &CrouchState {
-        &self.crouch_state.current_state()
-    }
-
-    pub fn perspective_mode(&self) -> &CharacterPerspectiveMode {
-        &self.perspective_mode.current_state()
-    }
-
-    pub fn set_perspective_mode(&mut self, new_perspective_mode: CharacterPerspectiveMode) {
-        self.perspective_mode.transition_to(new_perspective_mode);
     }
 
     /// Create a rigid body and collider for the character controller based on the the provided configuration parameters
@@ -528,7 +516,7 @@ impl CharacterController {
         );
     }
 
-    fn face_body_in_moving_direction(
+    pub fn face_body_in_moving_direction(
         &mut self,
         config: &CharacterControllerConfig,
         left_right_magnitude: f32,
@@ -680,12 +668,20 @@ impl CharacterController {
                 CharacterPerspectiveMode::FirstPerson => *body.position(),
             };
             // The max velocity transformed by the isometry (position & orientation)
-            // of the camera's boom.
+            // of the pivot (boom or body position).
             let transformed_max_velocity = pivot_isometry.transform_vector(&max_velocity);
             // The character controller isometry-transformed max velocity rotated to point in the
             // direction of the slope the character controller is currently on
-            let planar_transformed_max_velocity =
-                project_on_plane(&transformed_max_velocity, &self.ground_normal().unwrap());
+            let planar_transformed_max_velocity = if let Some(ground_normal) = self.ground_normal()
+            {
+                project_on_plane(&transformed_max_velocity, &ground_normal)
+            } else {
+                Vector3::new(
+                    transformed_max_velocity.x,
+                    current_velocity.y,
+                    transformed_max_velocity.z,
+                )
+            };
             // Calculate the velocity that the body will have *after*
             // this frame
             let frame_goal_velocity = move_towards(
@@ -703,8 +699,7 @@ impl CharacterController {
         }
     }
 
-    /// Move the character controller rigid body laterally (in the X-Z direction) based on user input.
-    fn move_body_continuous(
+    pub fn move_body_continuous(
         &mut self,
         config: &CharacterControllerConfig,
         delta_seconds: f32,
@@ -737,7 +732,7 @@ impl CharacterController {
         );
     }
 
-    fn move_body_discrete(
+    pub fn move_body_discrete(
         &mut self,
         config: &CharacterControllerConfig,
         delta_seconds: f32,

@@ -6,6 +6,7 @@ use crate::config::CharacterControllerConfig;
 pub struct PlayerConfig {
     pub character_controller: CharacterControllerConfig,
     pub event_queue_capacity: usize,
+    pub aerial_max_move_acceleration: f32,
 }
 
 impl Default for PlayerConfig {
@@ -16,6 +17,7 @@ impl Default for PlayerConfig {
                 ..Default::default()
             },
             event_queue_capacity: 10,
+            aerial_max_move_acceleration: 5.0,
         }
     }
 }
