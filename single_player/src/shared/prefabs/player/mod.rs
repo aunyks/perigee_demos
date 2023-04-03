@@ -272,23 +272,18 @@ impl<'a> Player<'a> {
         forward_back_magnitude: f32,
         rigid_body_set: &mut RigidBodySet,
     ) {
-        let perspective_mode = self.controller.perspective_mode.current_state();
         if let Some(body) = rigid_body_set.get_mut(self.controller.body_handle()) {
-            let pivot_isometry = match perspective_mode {
-                CharacterPerspectiveMode::ThirdPersonBasic
-                | CharacterPerspectiveMode::ThirdPersonCombat => Isometry::from_parts(
-                    self.controller.boom.translation,
-                    self.controller.boom.z_rotation,
-                ),
-                CharacterPerspectiveMode::FirstPerson => *body.position(),
-            };
-
             let movement_vector = Vector3::new(left_right_magnitude, 0.0, forward_back_magnitude)
                 .cap_magnitude(1.0)
                 * body.mass()
                 * config.aerial_max_move_acceleration
                 * delta_seconds;
-            body.apply_impulse(pivot_isometry.transform_vector(&movement_vector), true);
+            body.apply_impulse(
+                self.controller
+                    .pivot_isometry()
+                    .transform_vector(&movement_vector),
+                true,
+            );
         }
     }
 }

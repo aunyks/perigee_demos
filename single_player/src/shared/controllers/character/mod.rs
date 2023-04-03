@@ -650,6 +650,16 @@ impl CharacterController {
         &self.body_linear_velocity
     }
 
+    pub fn pivot_isometry(&self) -> Isometry<f32, Unit<Quaternion<f32>>, 3> {
+        match self.perspective_mode.current_state() {
+            CharacterPerspectiveMode::ThirdPersonBasic
+            | CharacterPerspectiveMode::ThirdPersonCombat => {
+                Isometry::from_parts(self.boom.translation, self.boom.z_rotation)
+            }
+            CharacterPerspectiveMode::FirstPerson => *self.body_isometry(),
+        }
+    }
+
     fn move_body(
         &mut self,
         max_velocity: &Vector3<f32>,
@@ -660,13 +670,7 @@ impl CharacterController {
         let current_velocity = self.body_linear_velocity();
         let body_handle = self.body_handle();
         if let Some(body) = rigid_body_set.get_mut(body_handle) {
-            let pivot_isometry = match self.perspective_mode.current_state() {
-                CharacterPerspectiveMode::ThirdPersonBasic
-                | CharacterPerspectiveMode::ThirdPersonCombat => {
-                    Isometry::from_parts(self.boom.translation, self.boom.z_rotation)
-                }
-                CharacterPerspectiveMode::FirstPerson => *body.position(),
-            };
+            let pivot_isometry = self.pivot_isometry();
             // The max velocity transformed by the isometry (position & orientation)
             // of the pivot (boom or body position).
             let transformed_max_velocity = pivot_isometry.transform_vector(&max_velocity);
