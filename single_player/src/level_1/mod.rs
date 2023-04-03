@@ -1,6 +1,8 @@
-use crate::shared::descriptor::Descriptor;
-use crate::shared::{input::Input, prefabs::Player, settings::GameSettings};
-use crate::{config::Level0Config, shared::events::CharacterControllerEvent};
+use crate::shared::{
+    descriptor::Descriptor, input::Input, prefabs::Player, settings::GameSettings,
+    vectors::FORWARD_VECTOR,
+};
+use crate::{config::Level1Config, shared::events::CharacterControllerEvent};
 use events::Level0Event;
 use moving_platform::MovingPlatform;
 use perigee::prelude::*;
@@ -12,7 +14,7 @@ mod moving_platform;
 #[derive(Serialize, Deserialize)]
 pub struct Sim<'a> {
     version: (u8, u8, u8),
-    config: Level0Config,
+    config: Level1Config,
     pub settings: GameSettings,
     pub physics: PhysicsWorld,
     pois: PointsOfInterest,
@@ -25,11 +27,13 @@ pub struct Sim<'a> {
     #[serde(skip)]
     level_event_channel: EventChannel<Level0Event>,
     #[serde(skip)]
+    launch_sensor_event_channel: ColliderEventChannel,
+    #[serde(skip)]
     pub input: Input,
 }
 
 impl<'a> FromConfig for Sim<'a> {
-    type Config<'b> = Level0Config;
+    type Config<'b> = Level1Config;
 
     fn from_config<'b>(config: Self::Config<'b>) -> Self {
         let physics = PhysicsWorld::from_config(&config.physics);
@@ -57,6 +61,7 @@ impl<'a> FromConfig for Sim<'a> {
                 MovingPlatform::new(Descriptor::from_name("Plat 3"), "Plat 3 Sensor"),
                 MovingPlatform::new(Descriptor::from_name("Plat 3 2"), "Plat 3 Sensor 2"),
             ],
+            launch_sensor_event_channel: ColliderEventChannel::default(),
         }
     }
 
@@ -67,7 +72,7 @@ impl<'a> FromConfig for Sim<'a> {
 
 impl<'a> Default for Sim<'a> {
     fn default() -> Self {
-        Self::from_config(Level0Config::default())
+        Self::from_config(Level1Config::default())
     }
 }
 
@@ -101,25 +106,24 @@ impl<'a> Sim<'a> {
             &self.config.player,
             &Gltf::from_slice(self.player_gltf_bytes).unwrap(),
             &mut self.physics,
-            self.pois.point_with_name("Player Start").cloned(),
+            Some(self.pois["Launch Plat Start"]),
             Some(String::from("PLAYER")),
         );
 
         for platform in &mut self.moving_platforms {
             platform.initialize(
                 vec![
-                    self.pois
-                        .point_with_name("Plat 3 Start Point")
-                        .cloned()
-                        .unwrap(),
-                    self.pois
-                        .point_with_name("Plat 3 End Point")
-                        .cloned()
-                        .unwrap(),
+                    self.pois["Plat 3 Start Point"],
+                    self.pois["Plat 3 End Point"],
                 ],
                 &mut self.physics,
             );
         }
+
+        self.physics.listen_to_collider(
+            self.physics.named_sensors["Launch Sensor"],
+            ColliderEventRelayer::from(self.launch_sensor_event_channel.clone_sender()),
+        );
     }
 }
 
@@ -255,6 +259,37 @@ impl<'a> Sim<'a> {
         }
 
         self.physics.step(delta_seconds);
+
+        while let Ok(launch_sensor_event) = self.launch_sensor_event_channel.get_message() {
+            match launch_sensor_event {
+                ColliderEvent::IntersectionStart(other) => {
+                    let launch_direction = self.pois["Launch Iso"]
+                        .rotation
+                        .transform_vector(&FORWARD_VECTOR);
+
+                    // Get the rigid body of the other collider if it exists
+                    if let Some(other_body) = self
+                        .physics
+                        .collider_set
+                        .get(other)
+                        .and_then(|other_collider| other_collider.parent())
+                        .filter(|other_body_handle| {
+                            other_body_handle
+                                == &self.physics.named_rigid_bodies[self.player.descriptor.as_ref()]
+                        })
+                        .and_then(|other_body_handle| {
+                            self.physics.rigid_body_set.get_mut(other_body_handle)
+                        })
+                    {
+                        other_body.apply_impulse(
+                            launch_direction * self.config.launch_impulse * other_body.mass(),
+                            true,
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
 
         // Ease the pressure of this channel
         while let Ok(player_event) = self.player.get_event() {

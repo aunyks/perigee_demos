@@ -15,7 +15,7 @@ mod utils;
 
 #[derive(Serialize, Deserialize)]
 pub struct Player<'a> {
-    descriptor: Descriptor<'a>,
+    pub descriptor: Descriptor<'a>,
     pub controller: CharacterController,
     movement_state: StateMachine<MovementState>,
     #[serde(skip)]

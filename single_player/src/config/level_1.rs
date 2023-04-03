@@ -7,7 +7,8 @@ use perigee::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct Level0Config {
+pub struct Level1Config {
+    pub launch_impulse: f32,
     #[serde(default)]
     pub level_event_queue_capacity: Option<usize>,
     #[serde(default)]
@@ -18,9 +19,10 @@ pub struct Level0Config {
     pub car: RaycastVehicleConfig,
 }
 
-impl Default for Level0Config {
+impl Default for Level1Config {
     fn default() -> Self {
         Self {
+            launch_impulse: 25.0,
             level_event_queue_capacity: Some(5),
             physics: PhysicsConfig::default(),
             player: PlayerConfig::default(),
@@ -29,16 +31,16 @@ impl Default for Level0Config {
     }
 }
 
-impl TryFromToml for Level0Config {
+impl TryFromToml for Level1Config {
     fn try_from_toml(toml_str: &str) -> Result<Self, String> {
-        match toml::from_str::<Level0Config>(toml_str) {
+        match toml::from_str::<Level1Config>(toml_str) {
             Ok(config) => Ok(config),
             Err(toml_de_err) => Err(toml_de_err.to_string()),
         }
     }
 }
 
-impl TryToToml for Level0Config {
+impl TryToToml for Level1Config {
     fn try_to_toml(&self) -> Result<String, String> {
         match toml::to_string(self) {
             Ok(config_toml) => Ok(config_toml),

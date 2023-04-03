@@ -13,6 +13,7 @@ impl Default for PlayerConfig {
     fn default() -> Self {
         Self {
             character_controller: CharacterControllerConfig {
+                jump_standing_acceleration: 7.0,
                 mass: 20.0,
                 ..Default::default()
             },
