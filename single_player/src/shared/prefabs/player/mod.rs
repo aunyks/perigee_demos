@@ -81,7 +81,7 @@ impl<'a> Player<'a> {
             .animation
             .on_frame(15, on_run_step);
         self.animation_manager.loop_animation(
-            &self.movement_state.current_state().to_string(),
+            &self.movement_state.current_state().as_str(),
             Some(&self.scene_object_name().to_owned()),
         );
     }
@@ -113,8 +113,11 @@ impl<'a> Player<'a> {
                 &mut physics.rigid_body_set,
             );
 
-            if self.controller.perspective_mode.current_state()
-                == &CharacterPerspectiveMode::ThirdPersonBasic
+            if self
+                .controller
+                .perspective_mode
+                .current_state()
+                .is_third_person()
             {
                 self.controller.face_body_in_moving_direction(
                     &config.character_controller,
@@ -129,11 +132,11 @@ impl<'a> Player<'a> {
 
         if *self.movement_state.current_state() != previous_tick_movement_state {
             self.animation_manager.stop_animation(
-                &previous_tick_movement_state.to_string(),
+                &previous_tick_movement_state.as_str(),
                 Some(&self.scene_object_name().to_owned()),
             );
             self.animation_manager.loop_animation(
-                &self.movement_state.current_state().to_string(),
+                &self.movement_state.current_state().as_str(),
                 Some(&self.scene_object_name().to_owned()),
             );
         }

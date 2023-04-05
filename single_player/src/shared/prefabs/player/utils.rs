@@ -21,22 +21,6 @@ impl Default for WalkDirection {
     }
 }
 
-impl ToString for WalkDirection {
-    fn to_string(&self) -> String {
-        match self {
-            Self::Forward => "FORWARD",
-            Self::RightForward => "RIGHT_FORWARD",
-            Self::Right => "RIGHT",
-            Self::RightBack => "RIGHT_BACK",
-            Self::Back => "BACKWARD",
-            Self::LeftBack => "LEFT_BACK",
-            Self::Left => "LEFT",
-            Self::LeftForward => "LEFT_FORWARD",
-        }
-        .to_string()
-    }
-}
-
 impl WalkDirection {
     pub fn from_movement_vector(movement_vector: &Vector3<f32>) -> Option<Self> {
         if movement_vector.magnitude() <= 0.0 {
@@ -110,18 +94,33 @@ impl Default for MovementState {
     }
 }
 
-impl ToString for MovementState {
-    fn to_string(&self) -> String {
+impl AsRef<str> for MovementState {
+    fn as_ref(&self) -> &str {
         match self {
             Self::Stationary(crouch_state) => match crouch_state {
-                CrouchState::Upright => "IDLE".to_string(),
-                CrouchState::Crouched => "CROUCHED".to_string(),
+                CrouchState::Upright => "IDLE",
+                CrouchState::Crouched => "CROUCHED",
             },
-            Self::Creeping => "CREEPING".to_string(),
-            Self::Walking(walk_dir) => format!("WALK_{}", walk_dir.to_string()),
-            Self::Running => "RUN_FORWARD".to_string(),
-            Self::Sprinting => "SPRINT_FORWARD".to_string(),
-            Self::InAir => "IN_AIR".to_string(),
+            Self::Creeping => "CREEPING",
+            Self::Walking(walk_dir) => match walk_dir {
+                WalkDirection::Forward => "WALK_FORWARD",
+                WalkDirection::RightForward => "WALK_RIGHT_FORWARD",
+                WalkDirection::Right => "WALK_RIGHT",
+                WalkDirection::RightBack => "WALK_RIGHT_BACK",
+                WalkDirection::Back => "WALK_BACKWARD",
+                WalkDirection::LeftBack => "WALK_LEFT_BACK",
+                WalkDirection::Left => "WALK_LEFT",
+                WalkDirection::LeftForward => "WALK_LEFT_FORWARD",
+            },
+            Self::Running => "RUN_FORWARD",
+            Self::Sprinting => "SPRINT_FORWARD",
+            Self::InAir => "IN_AIR",
         }
+    }
+}
+
+impl MovementState {
+    pub fn as_str(&self) -> &str {
+        self.as_ref()
     }
 }

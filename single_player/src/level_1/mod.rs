@@ -29,6 +29,8 @@ pub struct Sim<'a> {
     #[serde(skip)]
     launch_sensor_event_channel: ColliderEventChannel,
     #[serde(skip)]
+    finish_sensor_event_channel: ColliderEventChannel,
+    #[serde(skip)]
     pub input: Input,
 }
 
@@ -62,6 +64,7 @@ impl<'a> FromConfig for Sim<'a> {
                 MovingPlatform::new(Descriptor::from_name("Plat 3 2"), "Plat 3 Sensor 2"),
             ],
             launch_sensor_event_channel: ColliderEventChannel::default(),
+            finish_sensor_event_channel: ColliderEventChannel::default(),
         }
     }
 
@@ -124,6 +127,11 @@ impl<'a> Sim<'a> {
             self.physics.named_sensors["Launch Sensor"],
             ColliderEventRelayer::from(self.launch_sensor_event_channel.clone_sender()),
         );
+
+        self.physics.listen_to_collider(
+            self.physics.named_sensors["Finish Sensor"],
+            ColliderEventRelayer::from(self.finish_sensor_event_channel.clone_sender()),
+        );
     }
 }
 
@@ -161,6 +169,116 @@ impl<'a> Sim<'a> {
             .get(*prop_body_handle)
             .expect("Prop with provided name doesn't exist in physics world.")
             .position()
+    }
+
+    // Making this an FFI-only wrapper because if the WASM has a
+    // function "initialize" it's not obvious what type it's initializing.
+    #[ffi_only]
+    pub fn initialize_sim(&mut self) {
+        self.initialize();
+    }
+
+    pub fn desired_fps(&self) -> f32 {
+        30.0
+    }
+
+    /// Step the game simulation by the provided number of seconds.
+    pub fn step(&mut self, delta_seconds: f32) {
+        self.animation_manager.update(delta_seconds);
+
+        self.player.update(
+            &self.config.player,
+            &self.settings,
+            &self.input,
+            &mut self.physics,
+            delta_seconds,
+        );
+
+        for platform in &mut self.moving_platforms {
+            platform.update(&mut self.physics, delta_seconds);
+        }
+
+        self.physics.step(delta_seconds);
+
+        while let Ok(launch_sensor_event) = self.launch_sensor_event_channel.get_message() {
+            match launch_sensor_event {
+                ColliderEvent::IntersectionStart(other) => {
+                    let launch_direction = self.pois["Launch Iso"]
+                        .rotation
+                        .transform_vector(&FORWARD_VECTOR);
+
+                    // Get the rigid body of the other collider if it exists
+                    if let Some(other_body) = self
+                        .physics
+                        .collider_set
+                        .get(other)
+                        .and_then(|other_collider| other_collider.parent())
+                        .filter(|other_body_handle| {
+                            other_body_handle
+                                == &self.physics.named_rigid_bodies[self.player.descriptor.as_ref()]
+                        })
+                        .and_then(|other_body_handle| {
+                            self.physics.rigid_body_set.get_mut(other_body_handle)
+                        })
+                    {
+                        other_body.apply_impulse(
+                            launch_direction * self.config.launch_impulse * other_body.mass(),
+                            true,
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        while let Ok(finish_sensor_event) = self.finish_sensor_event_channel.get_message() {
+            match finish_sensor_event {
+                ColliderEvent::IntersectionStart(other) => {
+                    // Get the rigid body of the other collider if it exists
+                    if self
+                        .physics
+                        .collider_set
+                        .get(other)
+                        .and_then(|other_collider| other_collider.parent())
+                        .filter(|other_body_handle| {
+                            other_body_handle
+                                == &self.physics.named_rigid_bodies[self.player.descriptor.as_ref()]
+                        })
+                        .is_some()
+                    {
+                        debug!("level finished");
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Ease the pressure of this channel
+        while let Ok(player_event) = self.player.get_event() {
+            match player_event {
+                CharacterControllerEvent::Stepped => {
+                    play_audio(self.player.scene_object_name(), "STEP", 1.0)
+                }
+                CharacterControllerEvent::Jump => {
+                    play_audio(self.player.scene_object_name(), "JUMP", 1.0)
+                }
+                CharacterControllerEvent::StartedWallRunning => {
+                    loop_audio(self.player.scene_object_name(), "WALLRUN", 1.0)
+                }
+                CharacterControllerEvent::StoppedWallRunning => {
+                    stop_audio(self.player.scene_object_name(), "WALLRUN")
+                }
+                CharacterControllerEvent::StartedSliding => {
+                    loop_audio(self.player.scene_object_name(), "SLIDE", 1.0)
+                }
+                CharacterControllerEvent::StoppedSliding => {
+                    stop_audio(self.player.scene_object_name(), "SLIDE")
+                }
+                _ => {}
+            };
+        }
+
+        self.input.wipe();
     }
 
     #[ffi_only]
@@ -229,94 +347,6 @@ impl<'a> Sim<'a> {
     #[slot_return]
     pub fn player_body_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
         *self.player.body_isometry()
-    }
-
-    // Making this an FFI-only wrapper because if the WASM has a
-    // function "initialize" it's not obvious what type it's initializing.
-    #[ffi_only]
-    pub fn initialize_sim(&mut self) {
-        self.initialize();
-    }
-
-    pub fn desired_fps(&self) -> f32 {
-        30.0
-    }
-
-    /// Step the game simulation by the provided number of seconds.
-    pub fn step(&mut self, delta_seconds: f32) {
-        self.animation_manager.update(delta_seconds);
-
-        self.player.update(
-            &self.config.player,
-            &self.settings,
-            &self.input,
-            &mut self.physics,
-            delta_seconds,
-        );
-
-        for platform in &mut self.moving_platforms {
-            platform.update(&mut self.physics, delta_seconds);
-        }
-
-        self.physics.step(delta_seconds);
-
-        while let Ok(launch_sensor_event) = self.launch_sensor_event_channel.get_message() {
-            match launch_sensor_event {
-                ColliderEvent::IntersectionStart(other) => {
-                    let launch_direction = self.pois["Launch Iso"]
-                        .rotation
-                        .transform_vector(&FORWARD_VECTOR);
-
-                    // Get the rigid body of the other collider if it exists
-                    if let Some(other_body) = self
-                        .physics
-                        .collider_set
-                        .get(other)
-                        .and_then(|other_collider| other_collider.parent())
-                        .filter(|other_body_handle| {
-                            other_body_handle
-                                == &self.physics.named_rigid_bodies[self.player.descriptor.as_ref()]
-                        })
-                        .and_then(|other_body_handle| {
-                            self.physics.rigid_body_set.get_mut(other_body_handle)
-                        })
-                    {
-                        other_body.apply_impulse(
-                            launch_direction * self.config.launch_impulse * other_body.mass(),
-                            true,
-                        );
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        // Ease the pressure of this channel
-        while let Ok(player_event) = self.player.get_event() {
-            match player_event {
-                CharacterControllerEvent::Stepped => {
-                    play_audio(self.player.scene_object_name(), "STEP", 1.0)
-                }
-                CharacterControllerEvent::Jump => {
-                    play_audio(self.player.scene_object_name(), "JUMP", 1.0)
-                }
-                CharacterControllerEvent::StartedWallRunning => {
-                    loop_audio(self.player.scene_object_name(), "WALLRUN", 1.0)
-                }
-                CharacterControllerEvent::StoppedWallRunning => {
-                    stop_audio(self.player.scene_object_name(), "WALLRUN")
-                }
-                CharacterControllerEvent::StartedSliding => {
-                    loop_audio(self.player.scene_object_name(), "SLIDE", 1.0)
-                }
-                CharacterControllerEvent::StoppedSliding => {
-                    stop_audio(self.player.scene_object_name(), "SLIDE")
-                }
-                _ => {}
-            };
-        }
-
-        self.input.wipe();
     }
 }
 
