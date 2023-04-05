@@ -434,14 +434,14 @@ Promise.all(assetsToLoad)
 
       document
         .getElementById('restart-level-button')
-        .addEventListener('click', (e) => {
+        .addEventListener('click', () => {
           toggleModal(modalWithId('pause-modal'))
           toggleModal(modalWithId('restart-level-conf-modal'))
         })
 
       document
         .getElementById('restart-level-conf-button')
-        .addEventListener('click', (e) => {
+        .addEventListener('click', () => {
           toggleModal(modalWithId('restart-level-conf-modal'))
           resetGame()
           startGameplay()
@@ -449,7 +449,7 @@ Promise.all(assetsToLoad)
 
       document
         .getElementById('restart-level-deny-button')
-        .addEventListener('click', (e) => {
+        .addEventListener('click', () => {
           toggleModal(modalWithId('restart-level-conf-modal'))
           toggleModal(modalWithId('pause-modal'))
         })
