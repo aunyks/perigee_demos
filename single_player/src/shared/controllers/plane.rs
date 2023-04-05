@@ -1,7 +1,6 @@
 use crate::config::PlaneControllerConfig;
 use crate::shared::boom::Boom;
 use crate::shared::input::Input;
-use crate::shared::interactions::InteractionGroup;
 use crate::shared::settings::GameSettings;
 use crate::shared::vectors::*;
 use perigee::prelude::*;
@@ -53,11 +52,6 @@ impl PlaneController {
             config.fuselage_half_width,
             config.fuselage_half_height,
             config.fuselage_half_length,
-        )
-        .collision_groups(
-            InteractionGroups::all().with_memberships(Group::from_bits_truncate(
-                InteractionGroup::DynamicLevelObjects.into(),
-            )),
         )
         // Listen for *all* collision and intersection events with
         // this collider

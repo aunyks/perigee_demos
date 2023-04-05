@@ -189,6 +189,10 @@ Promise.all(assetsToLoad)
         ],
       ])
 
+      sim.events.on('LEVEL_COMPLETED', () => {
+        alert('Level complete! Yayy!')
+      })
+
       sim.events.on('PLAY_AUDIO', (sceneObj, audioName, playbackRate) => {
         const audioTracks = sceneTracks.get(sceneObj)
         if (audioTracks) {

@@ -10,7 +10,8 @@ class Simulation {
     this.events = new GameEvents()
     this._wasmExports = null
     this._wasmMemory = null
-    this._textDecoder = new TextDecoder()
+    this._textDecoder = new TextDecoder('utf-8')
+    this._textEncoder = new TextEncoder()
     // Maintain a map between strings and their pointers in WASM memory
     // so that we're not creating the same string multiple times, saving
     // a few bytes of WASM memory here and there.
@@ -165,7 +166,7 @@ class Simulation {
     if (strPtr !== undefined) {
       return strPtr
     } else {
-      const strBytes = new TextEncoder().encode(str)
+      const strBytes = this._textEncoder.encode(str)
       // Copy the string into memory allocated in the WebAssembly
       const newStrPtr = allocFn(strBytes.byteLength)
       const byteBuffer = new Uint8Array(

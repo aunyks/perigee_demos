@@ -29,7 +29,7 @@ pub struct Sim<'a> {
     #[serde(skip)]
     animation_manager: AnimationManager,
     #[serde(skip)]
-    level_event_channel: EventChannel<Level1Event>,
+    player_event_channel: ColliderEventChannel,
     #[serde(skip)]
     launch_sensor_event_channel: ColliderEventChannel,
     #[serde(skip)]
@@ -45,12 +45,6 @@ impl<'a> FromConfig for Sim<'a> {
         let physics = PhysicsWorld::from_config(&config.physics);
         let player = Player::from_config(&config.player);
 
-        let level_event_channel = if let Some(queue_cap) = &config.level_event_queue_capacity {
-            EventChannel::with_capacity(*queue_cap)
-        } else {
-            EventChannel::default()
-        };
-
         Self {
             version: (0, 0, 0),
             config,
@@ -60,13 +54,13 @@ impl<'a> FromConfig for Sim<'a> {
             input: Input::default(),
             scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/1/scene.glb"),
             player_gltf_bytes: include_bytes!("../../../assets/gltf/shared/player-character.glb"),
-            level_event_channel: level_event_channel,
             pois: PointsOfInterest::default(),
             animation_manager: AnimationManager::default(),
             moving_platforms: [
                 MovingPlatform::new(Descriptor::from_name("Plat 3"), "Plat 3 Sensor"),
                 MovingPlatform::new(Descriptor::from_name("Plat 3 2"), "Plat 3 Sensor 2"),
             ],
+            player_event_channel: ColliderEventChannel::default(),
             launch_sensor_event_channel: ColliderEventChannel::default(),
             finish_sensor_event_channel: ColliderEventChannel::default(),
         }
@@ -114,7 +108,7 @@ impl<'a> Sim<'a> {
             &self.config.player,
             &Gltf::from_slice(self.player_gltf_bytes).unwrap(),
             &mut self.physics,
-            Some(self.pois["Launch Plat Start"]),
+            Some(self.pois["Player Start"]),
             Some(String::from("PLAYER")),
         );
 
@@ -136,6 +130,11 @@ impl<'a> Sim<'a> {
         self.physics.listen_to_collider(
             self.physics.named_sensors["Finish Sensor"],
             ColliderEventRelayer::from(self.finish_sensor_event_channel.clone_sender()),
+        );
+
+        self.physics.listen_to_collider(
+            self.player.controller.collider_handle(),
+            ColliderEventRelayer::from(self.player_event_channel.clone_sender()),
         );
     }
 }
@@ -252,6 +251,20 @@ impl<'a> Sim<'a> {
                         .is_some()
                     {
                         self.send_level_event(Level1Event::LevelCompleted);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        while let Ok(player_collider_event) = self.player_event_channel.get_message() {
+            match player_collider_event {
+                ColliderEvent::IntersectionStart(other) => {
+                    // Get the rigid body of the other collider if it exists
+                    if let Some(sensor_name) = self.physics.named_sensors.name_of_handle(&other) {
+                        if Descriptor::from_name(sensor_name).has_tag("oob") {
+                            debug!("out of bounds!");
+                        }
                     }
                 }
                 _ => {}

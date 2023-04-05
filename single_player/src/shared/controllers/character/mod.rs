@@ -328,9 +328,7 @@ impl CharacterController {
                     config,
                     config.capsule_crouched_half_height(),
                     config.capsule_crouched_radius,
-                    &mut physics.rigid_body_set,
-                    &mut physics.collider_set,
-                    &mut physics.island_manager,
+                    physics,
                 );
                 // If we're moving fast enough, then this is a slide.
                 // Otherwise it's a normal crouch
@@ -352,9 +350,7 @@ impl CharacterController {
                         config,
                         config.capsule_standing_half_height(),
                         config.capsule_standing_radius,
-                        &mut physics.rigid_body_set,
-                        &mut physics.collider_set,
-                        &mut physics.island_manager,
+                        physics,
                     );
                     self.event_channel
                         .send(CharacterControllerEvent::StoodUpright);
@@ -1088,14 +1084,12 @@ impl CharacterController {
         config: &CharacterControllerConfig,
         new_capsule_half_height: f32,
         new_capsule_radius: f32,
-        rigid_body_set: &mut RigidBodySet,
-        collider_set: &mut ColliderSet,
-        island_manager: &mut IslandManager,
+        physics: &mut PhysicsWorld,
     ) {
         let distance_between_standing_and_crouched_heights =
             config.capsule_standing_total_height - config.capsule_crouched_total_height;
 
-        if let Some(body) = rigid_body_set.get_mut(self.body_handle()) {
+        if let Some(body) = physics.rigid_body_set.get_mut(self.body_handle()) {
             let next_body_isometry = body.next_position();
             let mut new_pos = *next_body_isometry;
             let standing_trans =
@@ -1135,12 +1129,22 @@ impl CharacterController {
                 });
             let new_collider =
                 self.build_collider(config, new_capsule_half_height, new_capsule_radius);
-            collider_set.remove(self.collider_handle(), island_manager, rigid_body_set, true);
-            self.set_collider_handle(collider_set.insert_with_parent(
+            physics.collider_set.remove(
+                self.collider_handle(),
+                &mut physics.island_manager,
+                &mut physics.rigid_body_set,
+                true,
+            );
+
+            let old_collider_handle = self.collider_handle();
+            self.set_collider_handle(physics.collider_set.insert_with_parent(
                 new_collider,
                 self.body_handle(),
-                rigid_body_set,
+                &mut physics.rigid_body_set,
             ));
+            let new_collider_handle = self.collider_handle();
+
+            physics.rekey_listeners(old_collider_handle, new_collider_handle);
         }
     }
 

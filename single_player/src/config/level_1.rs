@@ -10,8 +10,6 @@ use serde::{Deserialize, Serialize};
 pub struct Level1Config {
     pub launch_impulse: f32,
     #[serde(default)]
-    pub level_event_queue_capacity: Option<usize>,
-    #[serde(default)]
     pub physics: PhysicsConfig,
     #[serde(default)]
     pub player: PlayerConfig,
@@ -23,7 +21,6 @@ impl Default for Level1Config {
     fn default() -> Self {
         Self {
             launch_impulse: 25.0,
-            level_event_queue_capacity: Some(5),
             physics: PhysicsConfig::default(),
             player: PlayerConfig::default(),
             car: RaycastVehicleConfig::default(),

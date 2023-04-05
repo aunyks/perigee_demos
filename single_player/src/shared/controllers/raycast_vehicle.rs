@@ -1,7 +1,6 @@
 use crate::config::raycast_vehicle::RaycastVehicleConfig;
 use crate::shared::boom::Boom;
 use crate::shared::input::Input;
-use crate::shared::interactions::InteractionGroup;
 use crate::shared::settings::GameSettings;
 use perigee::rapier3d::control::DynamicRayCastVehicleController;
 use perigee::{prelude::*, rapier3d::control::WheelTuning};
@@ -60,11 +59,6 @@ impl RaycastVehicleController {
             config.cabin_half_width,
             config.cabin_half_height,
             config.cabin_half_length,
-        )
-        .collision_groups(
-            InteractionGroups::all().with_memberships(Group::from_bits_truncate(
-                InteractionGroup::DynamicLevelObjects.into(),
-            )),
         )
         // Listen for *all* collision and intersection events with
         // this collider
@@ -188,7 +182,7 @@ impl RaycastVehicleController {
             &mut physics.rigid_body_set,
             &physics.collider_set,
             &physics.query_pipeline,
-            QueryFilter::exclude_dynamic().exclude_rigid_body(self.cabin_body_handle),
+            QueryFilter::new().exclude_rigid_body(self.cabin_body_handle),
         );
 
         if let Some(cabin_body) = physics.rigid_body_set.get(self.cabin_body_handle) {

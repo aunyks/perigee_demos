@@ -12,7 +12,7 @@ class Level1Sim extends Simulation {
   async loadWasm(wasmPath) {
     const wasmFunctionImports = {
       level_event_hook: (ptr, len) => {
-        console.log('UNHANDLED LEVEL EVENT EMITTED:', this.getString(ptr, len))
+        this.events.emit(this.getString(ptr, len), [])
       },
       ...this.nowHandlers(),
       ...this.audioHandlers(),
