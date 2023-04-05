@@ -11,8 +11,8 @@ class Level1Sim extends Simulation {
 
   async loadWasm(wasmPath) {
     const wasmFunctionImports = {
-      on_level_event: (type) => {
-        console.log('UNHANDLED LEVEL EVENT EMITTED: ', type)
+      level_event_hook: (ptr, len) => {
+        console.log('UNHANDLED LEVEL EVENT EMITTED:', this.getString(ptr, len))
       },
       ...this.nowHandlers(),
       ...this.audioHandlers(),
@@ -94,8 +94,6 @@ class Level1Sim extends Simulation {
 
   step(deltaSeconds) {
     this._wasmExports.step(this._simPointer, deltaSeconds)
-    // this._wasmExports.get_player_interface_events(this._simPointer)
-    // this._wasmExports.get_level_events(this._simPointer)
   }
 
   leftRightLookSensitivity() {

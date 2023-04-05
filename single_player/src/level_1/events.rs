@@ -1,16 +1,18 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
-pub enum Level0Event {
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Level1Event {
     LevelCompleted,
+    LevelRestarted,
     LevelFailed,
 }
 
-impl From<Level0Event> for i32 {
-    fn from(level_event: Level0Event) -> Self {
-        match level_event {
-            Level0Event::LevelCompleted => 0,
-            Level0Event::LevelFailed => 1,
+impl AsRef<str> for Level1Event {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::LevelCompleted => "LEVEL_COMPLETED",
+            Self::LevelRestarted => "LEVEL_RESTARTED",
+            Self::LevelFailed => "LEVEL_FAILED",
         }
     }
 }

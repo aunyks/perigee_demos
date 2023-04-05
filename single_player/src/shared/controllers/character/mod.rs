@@ -3,7 +3,6 @@ use crate::shared::boom::Boom;
 use crate::shared::controllers::character::utils::*;
 use crate::shared::events::CharacterControllerEvent;
 use crate::shared::input::Input;
-use crate::shared::interactions::InteractionGroup;
 use crate::shared::settings::GameSettings;
 use crate::shared::vectors::*;
 use perigee::prelude::*;
@@ -81,6 +80,10 @@ impl FromConfig for CharacterController {
 }
 
 impl CharacterController {
+    pub fn query_filter() -> QueryFilter<'static> {
+        QueryFilter::new().exclude_sensors()
+    }
+
     pub fn get_event(&self) -> Result<CharacterControllerEvent, TryRecvError> {
         self.event_channel.get_message()
     }
@@ -92,11 +95,6 @@ impl CharacterController {
         capsule_radius: f32,
     ) -> Collider {
         ColliderBuilder::capsule_y(capsule_half_height, capsule_radius)
-            .collision_groups(
-                InteractionGroups::all().with_memberships(Group::from_bits_truncate(
-                    InteractionGroup::CharacterController.into(),
-                )),
-            )
             // Listen for *all* collision and intersection events with
             // this collider
             .active_events(ActiveEvents::COLLISION_EVENTS)
@@ -573,7 +571,7 @@ impl CharacterController {
             ),
             max_boom_length,
             true,
-            query_filter_excluding_player(),
+            Self::query_filter().exclude_collider(self.collider_handle()),
         ) {
             self.boom.set_length(hit_toi - 0.03);
         } else {
@@ -869,7 +867,6 @@ impl CharacterController {
     ) {
         let body_handle = self.body_handle();
         let body_isometry = self.body_isometry();
-        let query_filter = QueryFilter::new();
         let (cap_halfheight, cap_radius) = self.capsule_values(config);
 
         if rigid_body_set.get_mut(body_handle).is_some() {
@@ -881,7 +878,7 @@ impl CharacterController {
                 &Capsule::new_y(cap_halfheight, cap_radius),
                 config.ground_ray_length,
                 true,
-                query_filter.exclude_collider(self.collider_handle()), // query_filter_excluding_player(),
+                Self::query_filter().exclude_collider(self.collider_handle()),
             ) {
                 self.ground_normal = Some(*shape_hit.normal1);
                 return;
@@ -931,7 +928,7 @@ impl CharacterController {
                 &right_wall_ray,
                 (player_radius - COLLIDER_RAYCAST_OFFSET) + ray_distance_from_body,
                 false,
-                query_filter_excluding_player(),
+                Self::query_filter().exclude_collider(self.collider_handle()),
             ) {
                 let ray_normal = ray_intersection.normal;
                 let transformed_wall_normal = (-right_wall_ray.dir + ray_normal).normalize();
@@ -949,7 +946,7 @@ impl CharacterController {
                 &left_wall_ray,
                 (player_radius - COLLIDER_RAYCAST_OFFSET) + ray_distance_from_body,
                 false,
-                query_filter_excluding_player(),
+                Self::query_filter().exclude_collider(self.collider_handle()),
             ) {
                 let ray_normal = ray_intersection.normal;
                 let transformed_wall_normal = (-left_wall_ray.dir + ray_normal).normalize();
@@ -1056,7 +1053,7 @@ impl CharacterController {
                         standing_shape,
                         0.0,
                         false,
-                        query_filter_excluding_player(),
+                        Self::query_filter(),
                     )
                     .is_some()
                 {
@@ -1074,7 +1071,7 @@ impl CharacterController {
                         standing_shape,
                         0.0,
                         false,
-                        query_filter_excluding_player(),
+                        Self::query_filter(),
                     )
                     .is_some()
                 {

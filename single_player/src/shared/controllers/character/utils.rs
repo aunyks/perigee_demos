@@ -1,4 +1,3 @@
-use crate::shared::interactions::InteractionGroup;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -30,18 +29,6 @@ impl PartialEq for WallRunning {
 }
 
 impl Eq for WallRunning {}
-
-pub fn query_filter_excluding_player() -> QueryFilter<'static> {
-    QueryFilter {
-        groups: Some(
-            InteractionGroups::all().with_filter(
-                Group::from_bits_truncate(u32::from(InteractionGroup::CharacterController))
-                    .complement(),
-            ),
-        ),
-        ..Default::default()
-    }
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CrouchState {

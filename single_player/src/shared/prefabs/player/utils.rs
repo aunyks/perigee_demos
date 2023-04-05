@@ -118,9 +118,3 @@ impl AsRef<str> for MovementState {
         }
     }
 }
-
-impl MovementState {
-    pub fn as_str(&self) -> &str {
-        self.as_ref()
-    }
-}

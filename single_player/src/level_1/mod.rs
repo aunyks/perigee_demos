@@ -3,10 +3,14 @@ use crate::shared::{
     vectors::FORWARD_VECTOR,
 };
 use crate::{config::Level1Config, shared::events::CharacterControllerEvent};
-use events::Level0Event;
+use events::Level1Event;
 use moving_platform::MovingPlatform;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
+
+extern "C" {
+    fn level_event_hook(event_type_ptr: *const u8, event_type_len: usize);
+}
 
 mod events;
 mod moving_platform;
@@ -25,7 +29,7 @@ pub struct Sim<'a> {
     #[serde(skip)]
     animation_manager: AnimationManager,
     #[serde(skip)]
-    level_event_channel: EventChannel<Level0Event>,
+    level_event_channel: EventChannel<Level1Event>,
     #[serde(skip)]
     launch_sensor_event_channel: ColliderEventChannel,
     #[serde(skip)]
@@ -81,16 +85,17 @@ impl<'a> Default for Sim<'a> {
 
 // Simple setup and accessors
 impl<'a> Sim<'a> {
-    pub fn get_level_event(&self) -> Result<Level0Event, TryRecvError> {
-        self.level_event_channel.get_message()
-    }
-
     pub fn scene_gltf_bytes(&self) -> &[u8] {
         self.scene_gltf_bytes
     }
 
     pub fn player_gltf_bytes(&self) -> &[u8] {
         self.player_gltf_bytes
+    }
+
+    pub fn send_level_event(&self, evt: Level1Event) {
+        let level_event = evt.as_ref();
+        unsafe { level_event_hook(level_event.as_ptr(), level_event.len()) };
     }
 
     pub fn initialize(&mut self) {
@@ -246,7 +251,7 @@ impl<'a> Sim<'a> {
                         })
                         .is_some()
                     {
-                        debug!("level finished");
+                        self.send_level_event(Level1Event::LevelCompleted);
                     }
                 }
                 _ => {}

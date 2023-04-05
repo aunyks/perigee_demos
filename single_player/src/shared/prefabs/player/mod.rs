@@ -81,7 +81,7 @@ impl<'a> Player<'a> {
             .animation
             .on_frame(15, on_run_step);
         self.animation_manager.loop_animation(
-            &self.movement_state.current_state().as_str(),
+            &self.movement_state.current_state().as_ref(),
             Some(&self.scene_object_name().to_owned()),
         );
     }
@@ -132,11 +132,11 @@ impl<'a> Player<'a> {
 
         if *self.movement_state.current_state() != previous_tick_movement_state {
             self.animation_manager.stop_animation(
-                &previous_tick_movement_state.as_str(),
+                &previous_tick_movement_state.as_ref(),
                 Some(&self.scene_object_name().to_owned()),
             );
             self.animation_manager.loop_animation(
-                &self.movement_state.current_state().as_str(),
+                &self.movement_state.current_state().as_ref(),
                 Some(&self.scene_object_name().to_owned()),
             );
         }
