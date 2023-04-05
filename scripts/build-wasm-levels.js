@@ -21,7 +21,7 @@ fs.readdirSync(gltfLevelsPath).forEach((fileOrDir) => {
       '-p',
       'single_player',
       '--features',
-      `ffi level_${levelName}`,
+      `level_${levelName}`,
       '--target',
       'wasm32-unknown-unknown',
     ]

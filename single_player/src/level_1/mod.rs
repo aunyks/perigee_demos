@@ -8,12 +8,12 @@ use moving_platform::MovingPlatform;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
 
+mod events;
+mod moving_platform;
+
 extern "C" {
     fn level_event_hook(event_type_ptr: *const u8, event_type_len: usize);
 }
-
-mod events;
-mod moving_platform;
 
 #[derive(Serialize, Deserialize)]
 pub struct Sim<'a> {
@@ -68,12 +68,6 @@ impl<'a> FromConfig for Sim<'a> {
 
     fn set_config<'b>(&mut self, _config: Self::Config<'b>) {
         warn!("Level 0 Sim doesn't allow resetting configuration");
-    }
-}
-
-impl<'a> Default for Sim<'a> {
-    fn default() -> Self {
-        Self::from_config(Level1Config::default())
     }
 }
 
@@ -137,73 +131,8 @@ impl<'a> Sim<'a> {
             ColliderEventRelayer::from(self.player_event_channel.clone_sender()),
         );
     }
-}
 
-#[ffi]
-impl<'a> Sim<'a> {
-    #[ffi_only]
-    pub fn scene_gltf_bytes_ptr(&self) -> *const u8 {
-        self.scene_gltf_bytes().as_ptr()
-    }
-
-    #[ffi_only]
-    pub fn scene_gltf_bytes_len(&self) -> usize {
-        self.scene_gltf_bytes().len()
-    }
-
-    #[ffi_only]
-    pub fn player_gltf_bytes_ptr(&self) -> *const u8 {
-        self.player_gltf_bytes().as_ptr()
-    }
-
-    #[ffi_only]
-    pub fn player_gltf_bytes_len(&self) -> usize {
-        self.player_gltf_bytes().len()
-    }
-
-    #[slot_return]
-    pub fn prop_isometry(&self, prop_name: &str) -> &Isometry<f32, UnitQuaternion<f32>, 3> {
-        let prop_body_handle = self
-            .physics
-            .named_rigid_bodies
-            .handle_with_name(prop_name)
-            .expect("No prop has provided name.");
-        self.physics
-            .rigid_body_set
-            .get(*prop_body_handle)
-            .expect("Prop with provided name doesn't exist in physics world.")
-            .position()
-    }
-
-    // Making this an FFI-only wrapper because if the WASM has a
-    // function "initialize" it's not obvious what type it's initializing.
-    #[ffi_only]
-    pub fn initialize_sim(&mut self) {
-        self.initialize();
-    }
-
-    pub fn desired_fps(&self) -> f32 {
-        30.0
-    }
-
-    /// Step the game simulation by the provided number of seconds.
-    pub fn step(&mut self, delta_seconds: f32) {
-        self.animation_manager.update(delta_seconds);
-
-        self.player.update(
-            &self.config.player,
-            &self.settings,
-            &self.input,
-            &mut self.physics,
-            delta_seconds,
-        );
-
-        for platform in &mut self.moving_platforms {
-            platform.update(&mut self.physics, delta_seconds);
-        }
-
-        self.physics.step(delta_seconds);
-
+    fn launch_body_on_sensor_detection(&mut self) {
         while let Ok(launch_sensor_event) = self.launch_sensor_event_channel.get_message() {
             match launch_sensor_event {
                 ColliderEvent::IntersectionStart(other) => {
@@ -234,7 +163,9 @@ impl<'a> Sim<'a> {
                 _ => {}
             }
         }
+    }
 
+    fn finish_game_on_finish_sensor_detection(&mut self) {
         while let Ok(finish_sensor_event) = self.finish_sensor_event_channel.get_message() {
             match finish_sensor_event {
                 ColliderEvent::IntersectionStart(other) => {
@@ -256,11 +187,12 @@ impl<'a> Sim<'a> {
                 _ => {}
             }
         }
+    }
 
+    fn reset_player_on_out_of_bounds(&mut self) {
         while let Ok(player_collider_event) = self.player_event_channel.get_message() {
             match player_collider_event {
                 ColliderEvent::IntersectionStart(other) => {
-                    // Get the rigid body of the other collider if it exists
                     if let Some(sensor_name) = self.physics.named_sensors.name_of_handle(&other) {
                         if Descriptor::from_name(sensor_name).has_tag("oob") {
                             debug!("out of bounds!");
@@ -270,8 +202,9 @@ impl<'a> Sim<'a> {
                 _ => {}
             }
         }
+    }
 
-        // Ease the pressure of this channel
+    fn relay_character_events_to_interface(&mut self) {
         while let Ok(player_event) = self.player.get_event() {
             match player_event {
                 CharacterControllerEvent::Stepped => {
@@ -295,63 +228,120 @@ impl<'a> Sim<'a> {
                 _ => {}
             };
         }
+    }
+}
+
+#[ffi]
+impl<'a> Sim<'a> {
+    pub fn scene_gltf_bytes_ptr(&self) -> *const u8 {
+        self.scene_gltf_bytes().as_ptr()
+    }
+
+    pub fn scene_gltf_bytes_len(&self) -> usize {
+        self.scene_gltf_bytes().len()
+    }
+
+    pub fn player_gltf_bytes_ptr(&self) -> *const u8 {
+        self.player_gltf_bytes().as_ptr()
+    }
+
+    pub fn player_gltf_bytes_len(&self) -> usize {
+        self.player_gltf_bytes().len()
+    }
+
+    #[slot_return]
+    pub fn prop_isometry(&self, prop_name: &str) -> &Isometry<f32, UnitQuaternion<f32>, 3> {
+        let prop_body_handle = self
+            .physics
+            .named_rigid_bodies
+            .handle_with_name(prop_name)
+            .expect("No prop has provided name.");
+        self.physics
+            .rigid_body_set
+            .get(*prop_body_handle)
+            .expect("Prop with provided name doesn't exist in physics world.")
+            .position()
+    }
+
+    // Making this an FFI-only wrapper because if the WASM has a
+    // function "initialize" it's not obvious what type it's initializing.
+
+    pub fn initialize_sim(&mut self) {
+        self.initialize();
+    }
+
+    pub fn desired_fps(&self) -> f32 {
+        30.0
+    }
+
+    /// Step the game simulation by the provided number of seconds.
+    pub fn step(&mut self, delta_seconds: f32) {
+        self.animation_manager.update(delta_seconds);
+
+        self.player.update(
+            &self.config.player,
+            &self.settings,
+            &self.input,
+            &mut self.physics,
+            delta_seconds,
+        );
+
+        for platform in &mut self.moving_platforms {
+            platform.update(&mut self.physics, delta_seconds);
+        }
+
+        self.physics.step(delta_seconds);
+
+        self.launch_body_on_sensor_detection();
+        self.finish_game_on_finish_sensor_detection();
+        self.reset_player_on_out_of_bounds();
+        self.relay_character_events_to_interface();
 
         self.input.wipe();
     }
 
-    #[ffi_only]
     pub fn settings_left_right_look_sensitivity(&self) -> u8 {
         self.settings.left_right_look_sensitivity()
     }
 
-    #[ffi_only]
     pub fn settings_up_down_look_sensitivity(&self) -> u8 {
         self.settings.up_down_look_sensitivity()
     }
 
-    #[ffi_only]
     pub fn settings_set_left_right_look_sensitivity(&mut self, new_sensitivity: i32) {
         self.settings
             .set_left_right_look_sensitivity(new_sensitivity as u8);
     }
 
-    #[ffi_only]
     pub fn settings_set_up_down_look_sensitivity(&mut self, new_sensitivity: i32) {
         self.settings
             .set_up_down_look_sensitivity(new_sensitivity as u8);
     }
 
-    #[ffi_only]
     pub fn input_set_move_forward(&mut self, new_magnitude: f32) {
         self.input.set_move_forward(new_magnitude);
     }
 
-    #[ffi_only]
     pub fn input_set_move_right(&mut self, new_magnitude: f32) {
         self.input.set_move_right(new_magnitude);
     }
 
-    #[ffi_only]
     pub fn input_set_rotate_up(&mut self, new_magnitude: f32) {
         self.input.set_rotate_up(new_magnitude);
     }
 
-    #[ffi_only]
     pub fn input_set_rotate_right(&mut self, new_magnitude: f32) {
         self.input.set_rotate_right(new_magnitude);
     }
 
-    #[ffi_only]
     pub fn input_set_jump(&mut self, jump_val: u8) {
         self.input.set_jump(jump_val > 0)
     }
 
-    #[ffi_only]
     pub fn input_set_crouch(&mut self, crouch_val: u8) {
         self.input.set_crouch(crouch_val > 0)
     }
 
-    #[ffi_only]
     pub fn input_set_aim(&mut self, aim_val: u8) {
         self.input.set_aim(aim_val > 0)
     }
@@ -368,16 +358,14 @@ impl<'a> Sim<'a> {
     }
 }
 
-#[cfg(feature = "ffi")]
 #[no_mangle]
 pub extern "C" fn destroy_sim(sim_ptr: *mut Sim) {
     // Box will deallocate the memory on drop
     unsafe { Box::from_raw(sim_ptr) };
 }
 
-#[cfg(feature = "ffi")]
 #[no_mangle]
 pub extern "C" fn create_sim() -> *mut Sim<'static> {
     init_perigee_logger();
-    Box::into_raw(Box::new(Sim::default()))
+    Box::into_raw(Box::new(Sim::from_config(Level1Config::default())))
 }

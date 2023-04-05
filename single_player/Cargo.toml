@@ -12,12 +12,11 @@ lto = true
 crate-type = ["cdylib"]
 
 [features]
-ffi = ["perigee/ffi"]
 level_1 = []
 
 [dependencies]
 # https://github.com/aunyks/perigee
-perigee = { version = "0.5.2" }
+perigee = { version = "0.5.3", features = ["ffi"] }
 
 # https://github.com/serde-rs/serde
 serde = { version = "1.0.97", features = ["derive", "rc"] }
