@@ -3,11 +3,13 @@ use crate::shared::{
     vectors::FORWARD_VECTOR,
 };
 use crate::{config::Level1Config, shared::events::CharacterControllerEvent};
+use checkpoint_relayer::CheckpointEventRelayer;
 use events::Level1Event;
 use moving_platform::MovingPlatform;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
 
+mod checkpoint_relayer;
 mod events;
 mod moving_platform;
 
@@ -26,6 +28,8 @@ pub struct Sim<'a> {
     moving_platforms: [MovingPlatform<'a>; 2],
     scene_gltf_bytes: &'a [u8],
     player_gltf_bytes: &'a [u8],
+    checkpoint_index: u8,
+    checkpoint_iso: Isometry<f32, UnitQuaternion<f32>, 3>,
     #[serde(skip)]
     animation_manager: AnimationManager,
     #[serde(skip)]
@@ -34,6 +38,8 @@ pub struct Sim<'a> {
     launch_sensor_event_channel: ColliderEventChannel,
     #[serde(skip)]
     finish_sensor_event_channel: ColliderEventChannel,
+    #[serde(skip)]
+    checkpoint_event_channel: EventChannel<(ColliderEvent, ColliderHandle)>,
     #[serde(skip)]
     pub input: Input,
 }
@@ -50,6 +56,8 @@ impl<'a> FromConfig for Sim<'a> {
             config,
             player,
             physics,
+            checkpoint_index: 0,
+            checkpoint_iso: Isometry::identity(),
             settings: GameSettings::default(),
             input: Input::default(),
             scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/1/scene.glb"),
@@ -63,6 +71,7 @@ impl<'a> FromConfig for Sim<'a> {
             player_event_channel: ColliderEventChannel::default(),
             launch_sensor_event_channel: ColliderEventChannel::default(),
             finish_sensor_event_channel: ColliderEventChannel::default(),
+            checkpoint_event_channel: EventChannel::default(),
         }
     }
 
@@ -98,6 +107,8 @@ impl<'a> Sim<'a> {
         self.animation_manager
             .extend(AnimationManager::import_from_gltf(&scene_gltf));
 
+        self.checkpoint_iso = self.pois["Player Start"];
+
         self.player.initialize(
             &self.config.player,
             &Gltf::from_slice(self.player_gltf_bytes).unwrap(),
@@ -109,8 +120,8 @@ impl<'a> Sim<'a> {
         for platform in &mut self.moving_platforms {
             platform.initialize(
                 vec![
-                    self.pois["Plat 3 Start Point"],
                     self.pois["Plat 3 End Point"],
+                    self.pois["Plat 3 Start Point"],
                 ],
                 &mut self.physics,
             );
@@ -129,6 +140,22 @@ impl<'a> Sim<'a> {
         self.physics.listen_to_collider(
             self.player.controller.collider_handle(),
             ColliderEventRelayer::from(self.player_event_channel.clone_sender()),
+        );
+
+        self.physics.listen_to_collider(
+            self.physics.named_sensors["Halfway Platform Checkpoint"],
+            CheckpointEventRelayer::new(
+                self.checkpoint_event_channel.clone_sender(),
+                self.physics.named_sensors["Halfway Platform Checkpoint"],
+            ),
+        );
+
+        self.physics.listen_to_collider(
+            self.physics.named_sensors["Launch Platform Checkpoint"],
+            CheckpointEventRelayer::new(
+                self.checkpoint_event_channel.clone_sender(),
+                self.physics.named_sensors["Launch Platform Checkpoint"],
+            ),
         );
     }
 
@@ -195,7 +222,15 @@ impl<'a> Sim<'a> {
                 ColliderEvent::IntersectionStart(other) => {
                     if let Some(sensor_name) = self.physics.named_sensors.name_of_handle(&other) {
                         if Descriptor::from_name(sensor_name).has_tag("oob") {
-                            debug!("out of bounds!");
+                            if let Some(player_body) = self
+                                .physics
+                                .rigid_body_set
+                                .get_mut(self.player.controller.body_handle())
+                            {
+                                player_body.set_linvel(Vector3::zeros(), true);
+                                player_body.set_position(self.checkpoint_iso, true);
+                                self.send_level_event(Level1Event::PlayerReset);
+                            }
                         }
                     }
                 }
@@ -227,6 +262,49 @@ impl<'a> Sim<'a> {
                 }
                 _ => {}
             };
+        }
+    }
+
+    fn handle_checkpoint_reached(&mut self) {
+        while let Ok((checkpoint_sensor_event, sensor_handle)) =
+            self.checkpoint_event_channel.get_message()
+        {
+            match checkpoint_sensor_event {
+                ColliderEvent::IntersectionStart(other) => {
+                    // Get the rigid body of the other collider if it exists
+                    if self
+                        .physics
+                        .collider_set
+                        .get(other)
+                        .and_then(|other_collider| other_collider.parent())
+                        .filter(|other_body_handle| {
+                            other_body_handle
+                                == &self.physics.named_rigid_bodies[self.player.descriptor.as_ref()]
+                        })
+                        .is_some()
+                    {
+                        if sensor_handle
+                            == self.physics.named_sensors["Halfway Platform Checkpoint"]
+                        {
+                            if self.checkpoint_index < 1 {
+                                self.checkpoint_iso = self.pois["Halfway Platform Start"];
+                                self.checkpoint_index = 1;
+                            }
+                        } else if sensor_handle
+                            == self.physics.named_sensors["Launch Platform Checkpoint"]
+                        {
+                            if self.checkpoint_index < 2 {
+                                self.checkpoint_iso = self.pois["Launch Platform Start"];
+                                self.checkpoint_index = 2;
+                            }
+                        } else {
+                            return;
+                        }
+                        self.send_level_event(Level1Event::CheckpointReached);
+                    }
+                }
+                _ => {}
+            }
         }
     }
 }
@@ -296,6 +374,7 @@ impl<'a> Sim<'a> {
         self.finish_game_on_finish_sensor_detection();
         self.reset_player_on_out_of_bounds();
         self.relay_character_events_to_interface();
+        self.handle_checkpoint_reached();
 
         self.input.wipe();
     }

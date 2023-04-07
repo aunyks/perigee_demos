@@ -53,7 +53,6 @@ class Level1Sim extends Simulation {
   }
 
   getSceneGltfBytes() {
-    console.log(this._wasmExports)
     const ptrToGltf = this._wasmExports.scene_gltf_bytes_ptr(this._simPointer)
     const gltfLen = this._wasmExports.scene_gltf_bytes_len(this._simPointer)
     return this._wasmMemory.buffer.slice(ptrToGltf, ptrToGltf + gltfLen)

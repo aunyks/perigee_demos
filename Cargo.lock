@@ -428,7 +428,9 @@ checksum = "b1de2e551fb905ac83f73f7aedf2f0cb4a0da7e35efa24a202a936269f1f18e1"
 
 [[package]]
 name = "perigee"
-version = "0.5.2"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "394259ae889977ba7dbf48178b2921bbf7b33c9cd39e475bb513353b29641f69"
 dependencies = [
  "bincode",
  "crossbeam",
@@ -444,7 +446,9 @@ dependencies = [
 
 [[package]]
 name = "perigee_macros"
-version = "0.1.0"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40d332f0600153b228f6af6838f20bde25d4e65273c0bf7cc1a9a9f668fb698e"
 dependencies = [
  "proc-macro2",
  "quote",

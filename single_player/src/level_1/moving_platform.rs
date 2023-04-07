@@ -69,7 +69,12 @@ impl<'a> MovingPlatform<'a> {
             .handle_with_name(self.sensor_name)
             .and_then(|sensor_handle| physics.collider_set.get(*sensor_handle))
         {
-            self.sensor_local_iso = self.waypoint(self.waypoint_idx).inverse() * sensor.position();
+            if let Some(platform_body) = physics
+                .rigid_body_set
+                .get_mut(physics.named_rigid_bodies[self.descriptor.object_name()])
+            {
+                self.sensor_local_iso = platform_body.position().inverse() * sensor.position();
+            }
         }
 
         if let Some(plat_body) = physics
