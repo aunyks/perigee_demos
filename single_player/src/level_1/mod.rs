@@ -157,6 +157,8 @@ impl<'a> Sim<'a> {
                 self.physics.named_sensors["Launch Platform Checkpoint"],
             ),
         );
+
+        loop_audio(self.player.scene_object_name(), "LEVEL_MUSIC", 1.0, 0.15);
     }
 
     fn launch_body_on_sensor_detection(&mut self) {
@@ -243,19 +245,19 @@ impl<'a> Sim<'a> {
         while let Ok(player_event) = self.player.get_event() {
             match player_event {
                 CharacterControllerEvent::Stepped => {
-                    play_audio(self.player.scene_object_name(), "STEP", 1.0)
+                    play_audio(self.player.scene_object_name(), "STEP", 1.0, 1.0)
                 }
                 CharacterControllerEvent::Jump => {
-                    play_audio(self.player.scene_object_name(), "JUMP", 1.0)
+                    play_audio(self.player.scene_object_name(), "JUMP", 1.0, 1.0)
                 }
                 CharacterControllerEvent::StartedWallRunning => {
-                    loop_audio(self.player.scene_object_name(), "WALLRUN", 1.0)
+                    loop_audio(self.player.scene_object_name(), "WALLRUN", 1.0, 1.0)
                 }
                 CharacterControllerEvent::StoppedWallRunning => {
                     stop_audio(self.player.scene_object_name(), "WALLRUN")
                 }
                 CharacterControllerEvent::StartedSliding => {
-                    loop_audio(self.player.scene_object_name(), "SLIDE", 1.0)
+                    loop_audio(self.player.scene_object_name(), "SLIDE", 1.0, 1.0)
                 }
                 CharacterControllerEvent::StoppedSliding => {
                     stop_audio(self.player.scene_object_name(), "SLIDE")

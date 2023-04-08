@@ -1,9 +1,6 @@
 import {
   Object3D,
-  AmbientLight,
-  HemisphereLight,
   DirectionalLight,
-  PointLight,
   Scene,
   WebGLRenderer,
   AnimationMixer,
@@ -16,7 +13,6 @@ import {
   ACESFilmicToneMapping,
   sRGBEncoding,
   CapsuleGeometry,
-  BoxGeometry,
   Mesh,
   PositionalAudio,
 } from '/js/graphics/three.module.js'
@@ -64,6 +60,7 @@ const assetsToLoad = [
   promiseLoadAudioBuffer('/audio/player/footstep.mp3'),
   promiseLoadAudioBuffer('/audio/player/jump.mp3'),
   promiseLoadAudioBuffer('/audio/player/slide.mp3'),
+  promiseLoadAudioBuffer('/audio/level/main-music.mp3'),
 ]
 
 // Load all assets and then we're ready to load the scene
@@ -79,13 +76,10 @@ Promise.all(assetsToLoad)
       footstepAudioBuffer,
       jumpAudioBuffer,
       slideAudioBuffer,
+      levelMusicAudioBuffer,
     ]) => {
       loadingContainer.remove()
       sceneContainer.classList.remove('hidden')
-
-      const perfStatistics = bindSettings({ sim }, (debugGui) => {
-        debugGui.add(document, 'title')
-      })
 
       const renderer = new WebGLRenderer({
         canvas: sceneCanvas,
@@ -152,7 +146,12 @@ Promise.all(assetsToLoad)
       const audioListener = new AudioListener()
       animatedCamera.add(audioListener)
 
-      let isWallRunning = false
+      const perfStatistics = bindSettings(
+        { sim, audioListener },
+        (debugGui) => {
+          debugGui.add(document, 'title')
+        }
+      )
 
       const playerJumpPositionalAudio = new PositionalAudio(
         audioListener
@@ -163,13 +162,18 @@ Promise.all(assetsToLoad)
       const playerFootstepPositionalAudio = new PositionalAudio(
         audioListener
       ).setBuffer(footstepAudioBuffer)
+      const levelMusicPositionalAudio = new PositionalAudio(
+        audioListener
+      ).setBuffer(levelMusicAudioBuffer)
       animatedCamera.add(playerJumpPositionalAudio)
       animatedCamera.add(playerSlidePositionalAudio)
       animatedCamera.add(playerFootstepPositionalAudio)
+      animatedCamera.add(levelMusicPositionalAudio)
       const playerAudioTracks = new Map([
         ['JUMP', { track: playerJumpPositionalAudio, detune: [2, 1] }],
         ['SLIDE', { track: playerSlidePositionalAudio, detune: [4, 2] }],
         ['STEP', { track: playerFootstepPositionalAudio, detune: [8, 4] }],
+        ['LEVEL_MUSIC', { track: levelMusicPositionalAudio, detune: null }],
       ])
       const sceneTracks = new Map([['PLAYER', playerAudioTracks]])
       const sceneMixers = new Map([
@@ -193,48 +197,55 @@ Promise.all(assetsToLoad)
         alert('Level complete! Yayy!')
       })
 
-      sim.events.on('PLAY_AUDIO', (sceneObj, audioName, playbackRate) => {
-        const audioTracks = sceneTracks.get(sceneObj)
-        if (audioTracks) {
-          const audio = audioTracks.get(audioName)
-          if (audio) {
-            const audioTrack = audio.track
-            if (audioTrack.isPlaying) {
-              audioTrack.stop()
+      sim.events.on(
+        'PLAY_AUDIO',
+        (sceneObj, audioName, playbackRate, volume) => {
+          const audioTracks = sceneTracks.get(sceneObj)
+          if (audioTracks) {
+            const audio = audioTracks.get(audioName)
+            if (audio) {
+              const audioTrack = audio.track
+              if (audioTrack.isPlaying) {
+                audioTrack.stop()
+              }
+              if (audio.detune) {
+                audioTrack.detune =
+                  100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
+              }
+              audioTrack.setVolume(volume).setPlaybackRate(playbackRate).play()
             }
-            if (audio.detune) {
-              audioTrack.detune =
-                100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
-            }
-            audioTrack.setPlaybackRate(playbackRate).play()
           }
         }
-      })
+      )
 
-      sim.events.on('LOOP_AUDIO', (sceneObj, audioName, playbackRate) => {
-        const audioTracks = sceneTracks.get(sceneObj)
-        if (audioTracks) {
-          const audio = audioTracks.get(audioName)
-          if (audio) {
-            const audioTrack = audio.track
-            if (audioTrack.isPlaying) {
-              audioTrack.stop()
+      sim.events.on(
+        'LOOP_AUDIO',
+        (sceneObj, audioName, playbackRate, volume) => {
+          const audioTracks = sceneTracks.get(sceneObj)
+          if (audioTracks) {
+            const audio = audioTracks.get(audioName)
+            if (audio) {
+              const audioTrack = audio.track
+              if (audioTrack.isPlaying) {
+                audioTrack.stop()
+              }
+              if (audio.detune) {
+                audioTrack.detune =
+                  100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
+              }
+              audioTrack
+                .setVolume(volume)
+                .setLoop(true)
+                .setPlaybackRate(playbackRate)
+                .play()
             }
-            if (audio.detune) {
-              audioTrack.detune =
-                100 * (randomIntFromZero(audio.detune[0]) - audio.detune[1])
-            }
-            audioTrack.setLoop(true).setPlaybackRate(playbackRate).play()
           }
         }
-      })
+      )
 
       sim.events.on('STOP_AUDIO', (sceneObj, audioName) => {
         const audioTracks = sceneTracks.get(sceneObj)
         if (audioTracks) {
-          if (audioName === 'WALLRUN') {
-            isWallRunning = false
-          }
           const audio = audioTracks.get(audioName)
           if (audio) {
             const audioTrack = audio.track
@@ -392,6 +403,7 @@ Promise.all(assetsToLoad)
       }
 
       function stopGameplay() {
+        audioListener.context.suspend()
         window.cancelAnimationFrame(gameLoopContext)
         adAnnounce('Gameplay stopped')
       }

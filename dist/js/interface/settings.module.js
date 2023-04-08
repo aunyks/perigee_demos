@@ -2,7 +2,7 @@ import GUI from '/js/debug/lil-gui.module.js'
 import Stats from '/js/debug/stats.module.js'
 import { isInDebugMode } from '/js/misc/utils.module.js'
 
-function bindSettings({ sim }, setupDebugGui) {
+function bindSettings({ sim, audioListener }, setupDebugGui) {
   const perfStatistics = new Stats()
   document.body.appendChild(perfStatistics.dom)
 
@@ -45,6 +45,9 @@ function bindSettings({ sim }, setupDebugGui) {
 
   masterVolumeSlider.addEventListener('change', (e) => {
     settings.interface.masterVolume = parseFloat(e.target.value) / 100
+    if (audioListener) {
+      audioListener.setMasterVolume(settings.interface.masterVolume)
+    }
   })
 
   horizSensSlider.addEventListener('change', (e) => {

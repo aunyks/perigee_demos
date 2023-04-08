@@ -31,11 +31,17 @@ class Simulation {
         sceneObjLen,
         audioNamePtr,
         audioNameLen,
-        playbackRate
+        playbackRate,
+        volume
       ) => {
         const sceneObj = this.getString(sceneObjPtr, sceneObjLen)
         const audioName = this.getString(audioNamePtr, audioNameLen)
-        this.events.emit('PLAY_AUDIO', [sceneObj, audioName, playbackRate])
+        this.events.emit('PLAY_AUDIO', [
+          sceneObj,
+          audioName,
+          playbackRate,
+          volume,
+        ])
       },
       stop_audio_hook: (
         sceneObjPtr,
@@ -52,11 +58,17 @@ class Simulation {
         sceneObjLen,
         audioNamePtr,
         audioNameLen,
-        playbackRate
+        playbackRate,
+        volume
       ) => {
         const sceneObj = this.getString(sceneObjPtr, sceneObjLen)
         const audioName = this.getString(audioNamePtr, audioNameLen)
-        this.events.emit('LOOP_AUDIO', [sceneObj, audioName, playbackRate])
+        this.events.emit('LOOP_AUDIO', [
+          sceneObj,
+          audioName,
+          playbackRate,
+          volume,
+        ])
       },
     }
   }
