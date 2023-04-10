@@ -231,6 +231,12 @@ impl<'a> Sim<'a> {
                             {
                                 player_body.set_linvel(Vector3::zeros(), true);
                                 player_body.set_position(self.checkpoint_iso, true);
+                                play_audio(
+                                    self.player.scene_object_name(),
+                                    "PLAYER_RESET",
+                                    1.0,
+                                    0.2,
+                                );
                                 self.send_level_event(Level1Event::PlayerReset);
                             }
                         }
@@ -302,6 +308,12 @@ impl<'a> Sim<'a> {
                         } else {
                             return;
                         }
+                        play_audio(
+                            self.player.scene_object_name(),
+                            "CHECKPOINT_REACHED",
+                            1.0,
+                            0.2,
+                        );
                         self.send_level_event(Level1Event::CheckpointReached);
                     }
                 }

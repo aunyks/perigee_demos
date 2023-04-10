@@ -15,6 +15,7 @@ import {
   CapsuleGeometry,
   Mesh,
   PositionalAudio,
+  Audio,
 } from '/js/graphics/three.module.js'
 import { EffectComposer } from '/js/graphics/postprocessing/EffectComposer.js'
 import { RenderPass } from '/js/graphics/postprocessing/RenderPass.js'
@@ -61,6 +62,8 @@ const assetsToLoad = [
   promiseLoadAudioBuffer('/audio/player/jump.mp3'),
   promiseLoadAudioBuffer('/audio/player/slide.mp3'),
   promiseLoadAudioBuffer('/audio/level/main-music.mp3'),
+  promiseLoadAudioBuffer('/audio/level/player-reset.mp3'),
+  promiseLoadAudioBuffer('/audio/level/checkpoint-reached.mp3'),
 ]
 
 // Load all assets and then we're ready to load the scene
@@ -77,6 +80,8 @@ Promise.all(assetsToLoad)
       jumpAudioBuffer,
       slideAudioBuffer,
       levelMusicAudioBuffer,
+      playerResetAudioBuffer,
+      checkpointReachedAudioBuffer,
     ]) => {
       loadingContainer.remove()
       sceneContainer.classList.remove('hidden')
@@ -153,27 +158,34 @@ Promise.all(assetsToLoad)
         }
       )
 
-      const playerJumpPositionalAudio = new PositionalAudio(
+      const playerJumpPositionalAudio = new Audio(audioListener).setBuffer(
+        jumpAudioBuffer
+      )
+      const playerSlidePositionalAudio = new Audio(audioListener).setBuffer(
+        slideAudioBuffer
+      )
+      const playerFootstepPositionalAudio = new Audio(audioListener).setBuffer(
+        footstepAudioBuffer
+      )
+      const levelMusicPositionalAudio = new Audio(audioListener).setBuffer(
+        levelMusicAudioBuffer
+      )
+      const playerResetPositionalAudio = new Audio(audioListener).setBuffer(
+        playerResetAudioBuffer
+      )
+      const checkpointReachedPositionalAudio = new Audio(
         audioListener
-      ).setBuffer(jumpAudioBuffer)
-      const playerSlidePositionalAudio = new PositionalAudio(
-        audioListener
-      ).setBuffer(slideAudioBuffer)
-      const playerFootstepPositionalAudio = new PositionalAudio(
-        audioListener
-      ).setBuffer(footstepAudioBuffer)
-      const levelMusicPositionalAudio = new PositionalAudio(
-        audioListener
-      ).setBuffer(levelMusicAudioBuffer)
-      animatedCamera.add(playerJumpPositionalAudio)
-      animatedCamera.add(playerSlidePositionalAudio)
-      animatedCamera.add(playerFootstepPositionalAudio)
-      animatedCamera.add(levelMusicPositionalAudio)
+      ).setBuffer(checkpointReachedAudioBuffer)
       const playerAudioTracks = new Map([
         ['JUMP', { track: playerJumpPositionalAudio, detune: [2, 1] }],
         ['SLIDE', { track: playerSlidePositionalAudio, detune: [4, 2] }],
         ['STEP', { track: playerFootstepPositionalAudio, detune: [8, 4] }],
         ['LEVEL_MUSIC', { track: levelMusicPositionalAudio, detune: null }],
+        ['PLAYER_RESET', { track: playerResetPositionalAudio, detune: null }],
+        [
+          'CHECKPOINT_REACHED',
+          { track: checkpointReachedPositionalAudio, detune: null },
+        ],
       ])
       const sceneTracks = new Map([['PLAYER', playerAudioTracks]])
       const sceneMixers = new Map([
