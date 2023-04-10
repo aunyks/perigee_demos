@@ -7,6 +7,7 @@ import {
   AnimationClip,
   AudioListener,
   ColorManagement,
+  Color,
   Group,
   MeshBasicMaterial,
   Vector2,
@@ -38,6 +39,7 @@ import SkyDome from '/js/graphics/prefabs/skydome.module.js'
 import Sun from '/js/graphics/prefabs/sun.module.js'
 import { toggleModal, modalWithId } from '/js/components/modal.module.js'
 import { bindSettings } from '/js/interface/settings.module.js'
+import MarkerCylinder from '/js/graphics/prefabs/MarkerCylinder.module.js'
 
 const loadingContainer = document.getElementById('loading-container')
 const sceneContainer = document.getElementById('scene-container')
@@ -101,8 +103,17 @@ Promise.all(assetsToLoad)
       renderer.toneMapping = ACESFilmicToneMapping
       sceneContainer.append(renderer.domElement)
 
+      sim.initialize()
+
       // Prepare our scene
       const mainScene = new Scene()
+
+      const victoryMarker = new MarkerCylinder(2, 7, new Color(0x00ff00))
+      const [victoryMarkerQuat, victoryMarkerTrans] =
+        sim.getPoiIsometry('Victory Marker')
+      victoryMarker.position.fromArray(victoryMarkerTrans)
+      victoryMarker.quaternion.fromArray(victoryMarkerQuat)
+      mainScene.add(victoryMarker)
 
       // Create our background environment
       const backgroundEnvironment = new Group()
@@ -505,7 +516,6 @@ Promise.all(assetsToLoad)
         }
       })
 
-      sim.initialize()
       renderer.compile(mainScene, activeCamera)
       toggleModal(modalWithId('intro-modal'))
       const startBtn = document.getElementById('start-game-button')

@@ -355,9 +355,13 @@ impl<'a> Sim<'a> {
             .position()
     }
 
+    #[slot_return]
+    pub fn poi(&self, poi_name: &str) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+        self.pois[poi_name]
+    }
+
     // Making this an FFI-only wrapper because if the WASM has a
     // function "initialize" it's not obvious what type it's initializing.
-
     pub fn initialize_sim(&mut self) {
         self.initialize();
     }

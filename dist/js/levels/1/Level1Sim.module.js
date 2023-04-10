@@ -129,6 +129,15 @@ class Level1Sim extends Simulation {
     return this.getIsometryF32(this._isometryPointer)
   }
 
+  getPoiIsometry(name) {
+    this._wasmExports.poi(
+      this._simPointer,
+      this.ptrToString(name, this._wasmExports.alloc_string),
+      this._isometryPointer
+    )
+    return this.getIsometryF32(this._isometryPointer)
+  }
+
   playerBodyIsometry() {
     this._wasmExports.player_body_isometry(
       this._simPointer,
