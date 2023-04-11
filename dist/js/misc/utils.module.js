@@ -25,8 +25,33 @@ function bindAssistiveDeviceAnnouncer(announcerElem) {
 
 function noop() {}
 
+function bindNotificationBanner(
+  notificationBanner,
+  assistiveDeviceAnnounce = noop
+) {
+  return (msg, type, sustain) => {
+    notificationBanner.innerText = msg
+    notificationBanner.classList.add(type, 'active')
+    assistiveDeviceAnnounce(msg)
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        notificationBanner.classList.remove(type, 'active')
+        setTimeout(() => {
+          resolve()
+        }, 250)
+      }, sustain)
+    })
+  }
+}
+
 function isInDebugMode() {
   return !!new URLSearchParams(document.location.search).get('debug')
 }
 
-export { randomIntFromZero, bindAssistiveDeviceAnnouncer, noop, isInDebugMode }
+export {
+  randomIntFromZero,
+  bindAssistiveDeviceAnnouncer,
+  bindNotificationBanner,
+  noop,
+  isInDebugMode,
+}

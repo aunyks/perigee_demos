@@ -73,6 +73,46 @@
         right: 30px;
       }
 
+      #loading-container {
+        position: relative;
+        z-index: 2;
+      }
+
+      #notification-container {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        padding-top: 6.5em;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      #notification-banner {
+        padding: 5px 10px;
+        border-radius: 5px;
+        opacity: 0;
+        transition: opacity 0.25s;
+      }
+
+      #notification-banner.active {
+        opacity: 1;
+      }
+
+      #notification-banner.info {
+        color: black;
+        background: white;
+      }
+
+      #notification-banner.success {
+        color: white;
+        background: #0d0;
+      }
+
+      #notification-banner.warn {
+        color: white;
+        background: #bb0;
+      }
+
     </style>
   </head>
 
@@ -82,6 +122,11 @@
       <div id="loading-container">
         <div>
           <h1 aria-busy="true">Loading world</h1>
+        </div>
+      </div>
+      <div id="notification-container">
+        <div>
+          <h2 id="notification-banner">Checkpoint reached</h2>
         </div>
       </div>
       <div id="scene-container" class="hidden">
@@ -119,9 +164,9 @@
       can-exit="false">
       <article>
         <h1 id="intro-title">Barebones Platformer Demo</h1>
-        <p id="intro-content" style="margin-bottom: 1rem;"> This is a platformer proof-of-concept for <a
-            href="/">Perigee</a>. As you'll see, it's not yet the most visually appealing. Feel free to add your own
-          style for your project!</p>
+        <p id="intro-content"> This is a platformer proof-of-concept for <a href="/">Perigee</a>. As you'll see, it's
+          not yet the most visually appealing. Feel free to add your own style for your project! <em>Your objective: get
+            to the green zone.</em></p>
         <details style="margin-bottom: 1rem;">
           <summary>See Controls</summary>
           <div tabindex="0">
@@ -167,7 +212,7 @@
     <dialog role="dialog" aria-label="Confirm restart" id="restart-level-conf-modal" can-exit="false">
       <article>
         <h2>Are you sure?</h2>
-        <p style="margin-bottom: 1em;">This will restart the entire level and ignore your current progress.</p>
+        <p>This will restart the entire level and ignore your current progress.</p>
         <div class="grid">
           <button id="restart-level-conf-button">Yes</button>
           <button id="restart-level-deny-button">No</button>
@@ -213,10 +258,20 @@
         <button id="settings-back-button">Back</button>
       </article>
     </dialog>
-    <dialog role="alertdialog" id="error-modal" can-exit="false">
+    <dialog role="dialog" id="error-modal" can-exit="false">
       <article>
         <h2>An error occurred while loading assets.</h2>
-        <a role="button" href="" style="width: 100%;">Try again</a>
+        <a role="button" href="">Try again</a>
+      </article>
+    </dialog>
+    <dialog role="dialog" id="post-level-modal" can-exit="false">
+      <article>
+        <h1>You did it!</h1>
+        <p>You've beat the platformer. It was a walk in the park, huh? Anyway, play it again or try the time attack
+          racer level. Check out other levels if you want something different.</p>
+        <a role="button" href="">Play again</a>
+        <button disabled>Next level (Coming soon)</button>
+        <a role="button" href="/">See more</a>
       </article>
     </dialog>
     <script src="/js/misc/mobile-safari-disable-pinch-zoom.js"></script>

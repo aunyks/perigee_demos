@@ -64,11 +64,11 @@ impl<'a> Player<'a> {
 
         let animation_manager = AnimationManager::import_from_gltf(gltf);
         self.animation_manager.extend(animation_manager);
-        let _player_event_sender = self.event_channel.clone_sender();
+        let player_event_sender = self.event_channel.clone_sender();
         let on_run_step = move || {
-            // player_event_sender
-            //     .send(CharacterControllerEvent::Stepped)
-            //     .unwrap();
+            player_event_sender
+                .send(CharacterControllerEvent::Stepped)
+                .unwrap();
         };
         self.animation_manager
             .get_mut("SPRINT_FORWARD")
@@ -153,7 +153,9 @@ impl<'a> Player<'a> {
     }
 
     pub fn get_event(&self) -> Result<CharacterControllerEvent, TryRecvError> {
-        self.controller.get_event()
+        self.controller
+            .get_event()
+            .or(self.event_channel.get_message())
     }
 
     fn determine_movement_state(

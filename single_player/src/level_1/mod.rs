@@ -30,6 +30,7 @@ pub struct Sim<'a> {
     player_gltf_bytes: &'a [u8],
     checkpoint_index: u8,
     checkpoint_iso: Isometry<f32, UnitQuaternion<f32>, 3>,
+    level_completed: bool,
     #[serde(skip)]
     animation_manager: AnimationManager,
     #[serde(skip)]
@@ -58,6 +59,7 @@ impl<'a> FromConfig for Sim<'a> {
             physics,
             checkpoint_index: 0,
             checkpoint_iso: Isometry::identity(),
+            level_completed: false,
             settings: GameSettings::default(),
             input: Input::default(),
             scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/1/scene.glb"),
@@ -211,6 +213,8 @@ impl<'a> Sim<'a> {
                         .is_some()
                     {
                         self.send_level_event(Level1Event::LevelCompleted);
+                        play_audio(self.player.scene_object_name(), "LEVEL_VICTORY", 1.0, 0.3);
+                        self.level_completed = true;
                     }
                 }
                 _ => {}
@@ -229,15 +233,17 @@ impl<'a> Sim<'a> {
                                 .rigid_body_set
                                 .get_mut(self.player.controller.body_handle())
                             {
-                                player_body.set_linvel(Vector3::zeros(), true);
-                                player_body.set_position(self.checkpoint_iso, true);
-                                play_audio(
-                                    self.player.scene_object_name(),
-                                    "PLAYER_RESET",
-                                    1.0,
-                                    0.2,
-                                );
-                                self.send_level_event(Level1Event::PlayerReset);
+                                if !self.level_completed {
+                                    player_body.set_linvel(Vector3::zeros(), true);
+                                    player_body.set_position(self.checkpoint_iso, true);
+                                    play_audio(
+                                        self.player.scene_object_name(),
+                                        "PLAYER_RESET",
+                                        1.0,
+                                        0.2,
+                                    );
+                                    self.send_level_event(Level1Event::PlayerReset);
+                                }
                             }
                         }
                     }

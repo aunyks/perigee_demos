@@ -145,9 +145,7 @@ dialog article > footer [role='button'] {
 dialog article > footer [role='button']:not(:first-of-type) {
   margin-left: calc(var(--spacing) * 0.5);
 }
-dialog article p:last-of-type {
-  margin: 0;
-}
+
 dialog article .close {
   display: block;
   width: 1rem;
@@ -282,4 +280,10 @@ nav.navbar > ul > li > ul:hover {
 nav.navbar > ul > li > ul > li {
   clear: both;
   width: 100%;
+}
+
+a[role="button"] {
+  display: block;
+  width: 100%;
+  margin-bottom: calc(var(--spacing) / 2);
 }

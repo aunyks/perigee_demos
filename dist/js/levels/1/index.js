@@ -28,6 +28,7 @@ import { Level1Sim } from '/js/levels/1/Level1Sim.module.js'
 import {
   randomIntFromZero,
   bindAssistiveDeviceAnnouncer,
+  bindNotificationBanner,
   isInDebugMode,
 } from '/js/misc/utils.module.js'
 import {
@@ -50,6 +51,10 @@ const adAnnounce = bindAssistiveDeviceAnnouncer(
 )
 adAnnounce(loadingContainer.innerText)
 
+const notify = bindNotificationBanner(
+  document.getElementById('notification-banner')
+)
+
 const simulation = new Level1Sim()
 await simulation.loadWasm('/wasm/levels/1/sim.wasm')
 
@@ -66,6 +71,7 @@ const assetsToLoad = [
   promiseLoadAudioBuffer('/audio/level/main-music.mp3'),
   promiseLoadAudioBuffer('/audio/level/player-reset.mp3'),
   promiseLoadAudioBuffer('/audio/level/checkpoint-reached.mp3'),
+  promiseLoadAudioBuffer('/audio/level/level-victory.mp3'),
 ]
 
 // Load all assets and then we're ready to load the scene
@@ -84,6 +90,7 @@ Promise.all(assetsToLoad)
       levelMusicAudioBuffer,
       playerResetAudioBuffer,
       checkpointReachedAudioBuffer,
+      levelVictoryAudioBuffer,
     ]) => {
       loadingContainer.remove()
       sceneContainer.classList.remove('hidden')
@@ -108,7 +115,7 @@ Promise.all(assetsToLoad)
       // Prepare our scene
       const mainScene = new Scene()
 
-      const victoryMarker = new MarkerCylinder(2, 7, new Color(0x00ff00))
+      const victoryMarker = new MarkerCylinder(2, 6, new Color(0x00ff00))
       const [victoryMarkerQuat, victoryMarkerTrans] =
         sim.getPoiIsometry('Victory Marker')
       victoryMarker.position.fromArray(victoryMarkerTrans)
@@ -187,6 +194,9 @@ Promise.all(assetsToLoad)
       const checkpointReachedPositionalAudio = new Audio(
         audioListener
       ).setBuffer(checkpointReachedAudioBuffer)
+      const levelVictoryPositionalAudio = new Audio(audioListener).setBuffer(
+        levelVictoryAudioBuffer
+      )
       const playerAudioTracks = new Map([
         ['JUMP', { track: playerJumpPositionalAudio, detune: [2, 1] }],
         ['SLIDE', { track: playerSlidePositionalAudio, detune: [4, 2] }],
@@ -197,6 +207,7 @@ Promise.all(assetsToLoad)
           'CHECKPOINT_REACHED',
           { track: checkpointReachedPositionalAudio, detune: null },
         ],
+        ['LEVEL_VICTORY', { track: levelVictoryPositionalAudio, detune: null }],
       ])
       const sceneTracks = new Map([['PLAYER', playerAudioTracks]])
       const sceneMixers = new Map([
@@ -217,7 +228,20 @@ Promise.all(assetsToLoad)
       ])
 
       sim.events.on('LEVEL_COMPLETED', () => {
-        alert('Level complete! Yayy!')
+        notify('Level complete!', 'success', 3000).then(() => {
+          stopGameplay()
+          document.exitPointerLock()
+          toggleModal(modalWithId('post-level-modal'))
+        })
+      })
+
+      sim.events.on('CHECKPOINT_REACHED', () => {
+        notify('Checkpoint reached', 'info', 1500)
+      })
+
+      sim.events.on('PLAYER_RESET', () => {
+        const msgs = ['Almost!', 'Try again', 'Not quite', 'Maybe this time']
+        notify(msgs[Math.floor(Math.random() * msgs.length)], 'warn', 1500)
       })
 
       sim.events.on(
