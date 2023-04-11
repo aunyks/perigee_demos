@@ -160,7 +160,7 @@ impl<'a> Sim<'a> {
             ),
         );
 
-        loop_audio(self.player.scene_object_name(), "LEVEL_MUSIC", 1.0, 0.15);
+        loop_audio(self.player.scene_object_name(), "LEVEL_MUSIC", 1.0, 0.2);
     }
 
     fn launch_body_on_sensor_detection(&mut self) {
@@ -213,7 +213,8 @@ impl<'a> Sim<'a> {
                         .is_some()
                     {
                         self.send_level_event(Level1Event::LevelCompleted);
-                        play_audio(self.player.scene_object_name(), "LEVEL_VICTORY", 1.0, 0.3);
+                        stop_audio(self.player.scene_object_name(), "LEVEL_MUSIC");
+                        play_audio(self.player.scene_object_name(), "LEVEL_VICTORY", 1.0, 0.5);
                         self.level_completed = true;
                     }
                 }
@@ -240,7 +241,7 @@ impl<'a> Sim<'a> {
                                         self.player.scene_object_name(),
                                         "PLAYER_RESET",
                                         1.0,
-                                        0.2,
+                                        0.3,
                                     );
                                     self.send_level_event(Level1Event::PlayerReset);
                                 }

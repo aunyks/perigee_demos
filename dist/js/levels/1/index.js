@@ -52,7 +52,8 @@ const adAnnounce = bindAssistiveDeviceAnnouncer(
 adAnnounce(loadingContainer.innerText)
 
 const notify = bindNotificationBanner(
-  document.getElementById('notification-banner')
+  document.getElementById('notification-banner'),
+  adAnnounce
 )
 
 const simulation = new Level1Sim()
@@ -110,17 +111,8 @@ Promise.all(assetsToLoad)
       renderer.toneMapping = ACESFilmicToneMapping
       sceneContainer.append(renderer.domElement)
 
-      sim.initialize()
-
       // Prepare our scene
       const mainScene = new Scene()
-
-      const victoryMarker = new MarkerCylinder(2, 6, new Color(0x00ff00))
-      const [victoryMarkerQuat, victoryMarkerTrans] =
-        sim.getPoiIsometry('Victory Marker')
-      victoryMarker.position.fromArray(victoryMarkerTrans)
-      victoryMarker.quaternion.fromArray(victoryMarkerQuat)
-      mainScene.add(victoryMarker)
 
       // Create our background environment
       const backgroundEnvironment = new Group()
@@ -333,6 +325,15 @@ Promise.all(assetsToLoad)
       sim.events.on('AD_ANNOUNCEMENT', (msg) => {
         adAnnounce(msg)
       })
+
+      sim.initialize()
+
+      const victoryMarker = new MarkerCylinder(2, 6, new Color(0x00ff00))
+      const [victoryMarkerQuat, victoryMarkerTrans] =
+        sim.getPoiIsometry('Victory Marker')
+      victoryMarker.position.fromArray(victoryMarkerTrans)
+      victoryMarker.quaternion.fromArray(victoryMarkerQuat)
+      mainScene.add(victoryMarker)
 
       const gameInput = new GameInput({
         gamepads: [
