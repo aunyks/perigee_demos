@@ -46,34 +46,24 @@ pub struct Sim<'a> {
 }
 
 impl<'a> FromConfig for Sim<'a> {
-    type Config<'b> = Level1Config;
+    type Config<'b> = Level2Config;
 
     fn from_config<'b>(config: Self::Config<'b>) -> Self {
         let physics = PhysicsWorld::from_config(&config.physics);
-        let player = Player::from_config(&config.player);
+        let player = Car::from_config(&config.car);
 
         Self {
             version: (0, 0, 0),
             config,
-            player,
+            car,
             physics,
-            checkpoint_index: 0,
             checkpoint_iso: Isometry::identity(),
             level_completed: false,
             settings: GameSettings::default(),
             input: Input::default(),
             scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/1/scene.glb"),
-            player_gltf_bytes: include_bytes!("../../../assets/gltf/shared/player-character.glb"),
+            car_gltf_bytes: include_bytes!("../../../assets/gltf/shared/player-character.glb"),
             pois: PointsOfInterest::default(),
-            animation_manager: AnimationManager::default(),
-            moving_platforms: [
-                MovingPlatform::new(Descriptor::from_name("Plat 3"), "Plat 3 Sensor"),
-                MovingPlatform::new(Descriptor::from_name("Plat 3 2"), "Plat 3 Sensor 2"),
-            ],
-            player_event_channel: ColliderEventChannel::default(),
-            launch_sensor_event_channel: ColliderEventChannel::default(),
-            finish_sensor_event_channel: ColliderEventChannel::default(),
-            checkpoint_event_channel: EventChannel::default(),
         }
     }
 
@@ -340,14 +330,6 @@ impl<'a> Sim<'a> {
         self.scene_gltf_bytes().len()
     }
 
-    pub fn player_gltf_bytes_ptr(&self) -> *const u8 {
-        self.player_gltf_bytes().as_ptr()
-    }
-
-    pub fn player_gltf_bytes_len(&self) -> usize {
-        self.player_gltf_bytes().len()
-    }
-
     #[slot_return]
     pub fn prop_isometry(&self, prop_name: &str) -> &Isometry<f32, UnitQuaternion<f32>, 3> {
         let prop_body_handle = self
@@ -379,9 +361,7 @@ impl<'a> Sim<'a> {
 
     /// Step the game simulation by the provided number of seconds.
     pub fn step(&mut self, delta_seconds: f32) {
-        self.animation_manager.update(delta_seconds);
-
-        self.player.update(
+        self.car.update(
             &self.config.player,
             &self.settings,
             &self.input,
@@ -389,17 +369,7 @@ impl<'a> Sim<'a> {
             delta_seconds,
         );
 
-        for platform in &mut self.moving_platforms {
-            platform.update(&mut self.physics, delta_seconds);
-        }
-
         self.physics.step(delta_seconds);
-
-        self.launch_body_on_sensor_detection();
-        self.finish_game_on_finish_sensor_detection();
-        self.reset_player_on_out_of_bounds();
-        self.relay_character_events_to_interface();
-        self.handle_checkpoint_reached();
 
         self.input.wipe();
     }
@@ -438,14 +408,6 @@ impl<'a> Sim<'a> {
         self.input.set_rotate_right(new_magnitude);
     }
 
-    pub fn input_set_jump(&mut self, jump_val: u8) {
-        self.input.set_jump(jump_val > 0)
-    }
-
-    pub fn input_set_aim(&mut self, aim_val: u8) {
-        self.input.set_aim(aim_val > 0)
-    }
-
     #[slot_return]
     pub fn camera_global_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
         // The player's head position
@@ -453,8 +415,8 @@ impl<'a> Sim<'a> {
     }
 
     #[slot_return]
-    pub fn player_body_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
-        *self.player.body_isometry()
+    pub fn car_body_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+        *self.car.body_isometry()
     }
 }
 
@@ -467,5 +429,5 @@ pub extern "C" fn destroy_sim(sim_ptr: *mut Sim) {
 #[no_mangle]
 pub extern "C" fn create_sim() -> *mut Sim<'static> {
     init_perigee_logger();
-    Box::into_raw(Box::new(Sim::from_config(Level1Config::default())))
+    Box::into_raw(Box::new(Sim::from_config(Level2Config::default())))
 }

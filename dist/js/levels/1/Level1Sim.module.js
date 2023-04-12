@@ -84,10 +84,6 @@ class Level1Sim extends Simulation {
     this._wasmExports.input_set_jump(this._simPointer, jumpVal ? 1 : 0)
   }
 
-  inputSetCrouch(crouchVal) {
-    this._wasmExports.input_set_crouch(this._simPointer, crouchVal ? 1 : 0)
-  }
-
   inputSetAim(aimVal) {
     this._wasmExports.input_set_aim(this._simPointer, aimVal ? 1 : 0)
   }

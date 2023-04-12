@@ -222,7 +222,9 @@ Promise.all(assetsToLoad)
       sim.events.on('LEVEL_COMPLETED', () => {
         notify('Level complete!', 'success', 3000).then(() => {
           stopGameplay()
-          document.exitPointerLock()
+          if (document.exitPointerLock !== undefined) {
+            document.exitPointerLock()
+          }
           toggleModal(modalWithId('post-level-modal'))
         })
       })

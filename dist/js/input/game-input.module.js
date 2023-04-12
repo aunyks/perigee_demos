@@ -134,7 +134,7 @@ class GameInput {
     sim.inputSetMoveForward(this.moveForward())
     sim.inputSetMoveRight(this.moveRight())
     sim.inputSetJump(this.jump())
-    sim.inputSetCrouch(this.crouch())
+    // sim.inputSetCrouch(this.crouch())
     sim.inputSetAim(this.aim())
   }
 }
