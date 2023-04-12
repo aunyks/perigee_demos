@@ -70,9 +70,10 @@ const assetsToLoad = [
   promiseLoadAudioBuffer('/audio/player/jump.mp3'),
   promiseLoadAudioBuffer('/audio/player/slide.mp3'),
   promiseLoadAudioBuffer('/audio/level/main-music.mp3'),
-  promiseLoadAudioBuffer('/audio/level/player-reset.mp3'),
-  promiseLoadAudioBuffer('/audio/level/checkpoint-reached.mp3'),
-  promiseLoadAudioBuffer('/audio/level/level-victory.mp3'),
+  promiseLoadAudioBuffer('/audio/level/rewind.mp3'),
+  promiseLoadAudioBuffer('/audio/level/notify-bell.mp3'),
+  promiseLoadAudioBuffer('/audio/level/victory-trumpets.mp3'),
+  promiseLoadAudioBuffer('/audio/level/whoosh.mp3'),
 ]
 
 // Load all assets and then we're ready to load the scene
@@ -92,6 +93,7 @@ Promise.all(assetsToLoad)
       playerResetAudioBuffer,
       checkpointReachedAudioBuffer,
       levelVictoryAudioBuffer,
+      whooshAudioBuffer,
     ]) => {
       loadingContainer.remove()
       sceneContainer.classList.remove('hidden')
@@ -189,6 +191,9 @@ Promise.all(assetsToLoad)
       const levelVictoryPositionalAudio = new Audio(audioListener).setBuffer(
         levelVictoryAudioBuffer
       )
+      const whooshPositionalAudio = new Audio(audioListener).setBuffer(
+        whooshAudioBuffer
+      )
       const playerAudioTracks = new Map([
         ['JUMP', { track: playerJumpPositionalAudio, detune: [2, 1] }],
         ['SLIDE', { track: playerSlidePositionalAudio, detune: [4, 2] }],
@@ -200,6 +205,7 @@ Promise.all(assetsToLoad)
           { track: checkpointReachedPositionalAudio, detune: null },
         ],
         ['LEVEL_VICTORY', { track: levelVictoryPositionalAudio, detune: null }],
+        ['WHOOSH', { track: whooshPositionalAudio, detune: null }],
       ])
       const sceneTracks = new Map([['PLAYER', playerAudioTracks]])
       const sceneMixers = new Map([

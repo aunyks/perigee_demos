@@ -189,6 +189,7 @@ impl<'a> Sim<'a> {
                             launch_direction * self.config.launch_impulse * other_body.mass(),
                             true,
                         );
+                        play_audio(self.player.scene_object_name(), "WHOOSH", 1.0, 0.35);
                     }
                 }
                 _ => {}
