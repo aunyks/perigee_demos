@@ -54,6 +54,11 @@ impl RaycastVehicleController {
 
         let rigid_body = RigidBodyBuilder::dynamic()
             .position(initial_isometry)
+            .additional_mass_properties(MassProperties::new(
+                config.cabin_center_of_mass,
+                0.0,
+                Vector3::zeros(),
+            ))
             .build();
         let cabin_collider = ColliderBuilder::cuboid(
             config.cabin_half_width,
@@ -97,6 +102,15 @@ impl RaycastVehicleController {
 
     pub fn camera_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
         self.camera_boom.end_isometry()
+    }
+
+    pub fn wheel_isometry(&self, wheel_idx: usize) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+        let wheel = self.rapier_vehicle.wheels()[wheel_idx];
+        Isometry::from_parts(
+            wheel.center().into(),
+            self.cabin_isometry().rotation
+                * UnitQuaternion::from_euler_angles(0.0, wheel.steering, 0.0),
+        )
     }
 
     fn update_boom_isometry(

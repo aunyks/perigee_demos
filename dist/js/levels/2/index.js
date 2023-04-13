@@ -13,7 +13,7 @@ import {
   Vector2,
   ACESFilmicToneMapping,
   sRGBEncoding,
-  CapsuleGeometry,
+  BoxGeometry,
   Mesh,
   PositionalAudio,
   Audio,
@@ -24,7 +24,7 @@ import { UnrealBloomPass } from '/js/graphics/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from '/js/graphics/postprocessing/ShaderPass.js'
 import { FXAAShader } from '/js/graphics/postprocessing/shaders/FXAAShader.js'
 import { GameInput } from '/js/input/game-input.module.js'
-import { Level1Sim } from '/js/levels/1/Level1Sim.module.js'
+import { Level2Sim } from '/js/levels/2/Level2Sim.module.js'
 import {
   randomIntFromZero,
   bindAssistiveDeviceAnnouncer,
@@ -56,24 +56,17 @@ const notify = bindNotificationBanner(
   adAnnounce
 )
 
-const simulation = new Level1Sim()
-await simulation.loadWasm('/wasm/levels/1/sim.wasm')
+const simulation = new Level2Sim()
+await simulation.loadWasm('/wasm/levels/2/sim.wasm')
 
 const assetsToLoad = [
   simulation,
   // Visuals
   promiseParseGltf(simulation.getSceneGltfBytes()),
   promiseLoadGltf('/gltf/player-camera.glb'),
-  promiseParseGltf(simulation.getPlayerGltfBytes()),
+  promiseLoadGltf('/gltf/sedan.glb'),
   // Audio
-  promiseLoadAudioBuffer('/audio/player/footstep.mp3'),
-  promiseLoadAudioBuffer('/audio/player/jump.mp3'),
-  promiseLoadAudioBuffer('/audio/player/slide.mp3'),
   promiseLoadAudioBuffer('/audio/level/main-music.mp3'),
-  promiseLoadAudioBuffer('/audio/level/rewind.mp3'),
-  promiseLoadAudioBuffer('/audio/level/notify-bell.mp3'),
-  promiseLoadAudioBuffer('/audio/level/victory-trumpets.mp3'),
-  promiseLoadAudioBuffer('/audio/level/whoosh.mp3'),
 ]
 
 // Load all assets and then we're ready to load the scene
@@ -84,16 +77,9 @@ Promise.all(assetsToLoad)
       // Visuals
       sceneGltf,
       animatedCameraGltf,
-      playerModelGltf,
+      sedanGltf,
       // Audio
-      footstepAudioBuffer,
-      jumpAudioBuffer,
-      slideAudioBuffer,
       levelMusicAudioBuffer,
-      playerResetAudioBuffer,
-      checkpointReachedAudioBuffer,
-      levelVictoryAudioBuffer,
-      whooshAudioBuffer,
     ]) => {
       loadingContainer.remove()
       sceneContainer.classList.remove('hidden')
@@ -116,6 +102,18 @@ Promise.all(assetsToLoad)
       // Prepare our scene
       const mainScene = new Scene()
 
+      const sedanCabin = sedanGltf.scene.getObjectByName('cabin')
+      mainScene.add(sedanCabin)
+      const wheels = [
+        sedanGltf.scene.getObjectByName('front_left_wheel'),
+        sedanGltf.scene.getObjectByName('front_right_wheel'),
+        sedanGltf.scene.getObjectByName('back_left_wheel'),
+        sedanGltf.scene.getObjectByName('back_right_wheel'),
+      ]
+      for (const wheel of wheels) {
+        mainScene.add(wheel)
+      }
+
       // Create our background environment
       const backgroundEnvironment = new Group()
       backgroundEnvironment.add(new SkyDome())
@@ -124,16 +122,6 @@ Promise.all(assetsToLoad)
       backgroundEnvironment.add(sun)
       backgroundEnvironment.renderOrder = -Number.MAX_SAFE_INTEGER
       mainScene.add(backgroundEnvironment)
-
-      const playerHeight = 1.83
-      const playerRadius = 0.4
-      const playerCollider = new Mesh(
-        new CapsuleGeometry(playerRadius, playerHeight - playerRadius * 2),
-        new MeshBasicMaterial({ color: 0xffff00, wireframe: true })
-      )
-      if (isInDebugMode()) {
-        mainScene.add(playerCollider)
-      }
 
       sceneGltf.scene.traverse((obj) => {
         if (!!obj.isMesh && !obj.userData.simSettings.graphics.enabled) {
@@ -144,7 +132,6 @@ Promise.all(assetsToLoad)
       })
 
       mainScene.add(sceneGltf.scene)
-      mainScene.add(playerModelGltf.scene)
       mainScene.add(new DirectionalLight(0xffffff, 10))
 
       const animatedCamera = animatedCameraGltf.cameras[0]
@@ -170,52 +157,14 @@ Promise.all(assetsToLoad)
         }
       )
 
-      const playerJumpPositionalAudio = new Audio(audioListener).setBuffer(
-        jumpAudioBuffer
-      )
-      const playerSlidePositionalAudio = new Audio(audioListener).setBuffer(
-        slideAudioBuffer
-      )
-      const playerFootstepPositionalAudio = new Audio(audioListener).setBuffer(
-        footstepAudioBuffer
-      )
       const levelMusicPositionalAudio = new Audio(audioListener).setBuffer(
         levelMusicAudioBuffer
       )
-      const playerResetPositionalAudio = new Audio(audioListener).setBuffer(
-        playerResetAudioBuffer
-      )
-      const checkpointReachedPositionalAudio = new Audio(
-        audioListener
-      ).setBuffer(checkpointReachedAudioBuffer)
-      const levelVictoryPositionalAudio = new Audio(audioListener).setBuffer(
-        levelVictoryAudioBuffer
-      )
-      const whooshPositionalAudio = new Audio(audioListener).setBuffer(
-        whooshAudioBuffer
-      )
       const playerAudioTracks = new Map([
-        ['JUMP', { track: playerJumpPositionalAudio, detune: [2, 1] }],
-        ['SLIDE', { track: playerSlidePositionalAudio, detune: [4, 2] }],
-        ['STEP', { track: playerFootstepPositionalAudio, detune: [8, 4] }],
         ['LEVEL_MUSIC', { track: levelMusicPositionalAudio, detune: null }],
-        ['PLAYER_RESET', { track: playerResetPositionalAudio, detune: null }],
-        [
-          'CHECKPOINT_REACHED',
-          { track: checkpointReachedPositionalAudio, detune: null },
-        ],
-        ['LEVEL_VICTORY', { track: levelVictoryPositionalAudio, detune: null }],
-        ['WHOOSH', { track: whooshPositionalAudio, detune: null }],
       ])
       const sceneTracks = new Map([['PLAYER', playerAudioTracks]])
       const sceneMixers = new Map([
-        [
-          'PLAYER',
-          {
-            mixer: new AnimationMixer(playerModelGltf.scene),
-            clips: playerModelGltf.animations,
-          },
-        ],
         [
           'CAMERA',
           {
@@ -233,15 +182,6 @@ Promise.all(assetsToLoad)
           }
           toggleModal(modalWithId('post-level-modal'))
         })
-      })
-
-      sim.events.on('CHECKPOINT_REACHED', () => {
-        notify('Checkpoint reached', 'info', 1500)
-      })
-
-      sim.events.on('PLAYER_RESET', () => {
-        const msgs = ['Almost!', 'Try again', 'Not quite', 'Maybe this time']
-        notify(msgs[Math.floor(Math.random() * msgs.length)], 'warn', 1500)
       })
 
       sim.events.on(
@@ -336,13 +276,6 @@ Promise.all(assetsToLoad)
 
       sim.initialize()
 
-      const victoryMarker = new MarkerCylinder(2, 6, new Color(0x00ff00))
-      const [victoryMarkerQuat, victoryMarkerTrans] =
-        sim.getPoiIsometry('Victory Marker')
-      victoryMarker.position.fromArray(victoryMarkerTrans)
-      victoryMarker.quaternion.fromArray(victoryMarkerQuat)
-      mainScene.add(victoryMarker)
-
       const gameInput = new GameInput({
         gamepads: [
           {
@@ -373,7 +306,6 @@ Promise.all(assetsToLoad)
       let lastTimestamp = null
       let deltaT = 0
       let activeCamera = animatedCamera
-      // https://www.gafferongames.com/post/fix_your_timestep/ "Free the physics"
       let accumulatedTimestep = 0
       const desiredTimestep = 1 / sim.desiredFps()
       const MAX_FRAMES_TO_DROP = 3
@@ -428,15 +360,17 @@ Promise.all(assetsToLoad)
           cameraRig.position.fromArray(camGlobalTranslation)
           cameraRig.quaternion.fromArray(camGlobalRotation)
 
-          const [playerRotation, playerTranslation] = sim.playerBodyIsometry()
-          playerCollider.position.fromArray(playerTranslation)
-          playerCollider.quaternion.fromArray(playerRotation)
-          playerModelGltf.scene.position.fromArray(playerTranslation)
-          playerModelGltf.scene.quaternion.fromArray(playerRotation)
+          const [cabinRotation, cabinTranslation] = sim.carCabinIsometry()
+          sedanCabin.position.fromArray(cabinTranslation)
+          sedanCabin.quaternion.fromArray(cabinRotation)
+          for (let wheelIdx = 0; wheelIdx < wheels.length; wheelIdx++) {
+            const wheel = wheels[wheelIdx]
+            const [wheelRotation, wheelTranslation] =
+              sim.wheelIsometry(wheelIdx)
+            wheel.position.fromArray(wheelTranslation)
+            wheel.quaternion.fromArray(wheelRotation)
+          }
 
-          // Make sure the background environment follows the camera. We don't have to worry
-          // about it occluding anything because every object in it has a low render order
-          // and material depth test turned off
           activeCamera.getWorldPosition(backgroundEnvironment.position)
 
           postProcessComposer.render(deltaSeconds)

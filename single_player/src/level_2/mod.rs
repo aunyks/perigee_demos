@@ -1,17 +1,11 @@
-use crate::shared::{
-    descriptor::Descriptor, input::Input, prefabs::Player, settings::GameSettings,
-    vectors::FORWARD_VECTOR,
-};
-use crate::{config::Level1Config, shared::events::CharacterControllerEvent};
-use checkpoint_relayer::CheckpointEventRelayer;
-use events::Level1Event;
-use moving_platform::MovingPlatform;
+use crate::config::Level2Config;
+use crate::shared::{input::Input, prefabs::Sedan, settings::GameSettings};
+
+use events::Level2Event;
 use perigee::prelude::*;
 use serde::{Deserialize, Serialize};
 
-mod checkpoint_relayer;
 mod events;
-mod moving_platform;
 
 extern "C" {
     fn level_event_hook(event_type_ptr: *const u8, event_type_len: usize);
@@ -20,27 +14,12 @@ extern "C" {
 #[derive(Serialize, Deserialize)]
 pub struct Sim<'a> {
     version: (u8, u8, u8),
-    config: Level1Config,
+    config: Level2Config,
     pub settings: GameSettings,
     pub physics: PhysicsWorld,
     pois: PointsOfInterest,
-    pub player: Player<'a>,
-    moving_platforms: [MovingPlatform<'a>; 2],
+    pub car: Sedan<'a>,
     scene_gltf_bytes: &'a [u8],
-    player_gltf_bytes: &'a [u8],
-    checkpoint_index: u8,
-    checkpoint_iso: Isometry<f32, UnitQuaternion<f32>, 3>,
-    level_completed: bool,
-    #[serde(skip)]
-    animation_manager: AnimationManager,
-    #[serde(skip)]
-    player_event_channel: ColliderEventChannel,
-    #[serde(skip)]
-    launch_sensor_event_channel: ColliderEventChannel,
-    #[serde(skip)]
-    finish_sensor_event_channel: ColliderEventChannel,
-    #[serde(skip)]
-    checkpoint_event_channel: EventChannel<(ColliderEvent, ColliderHandle)>,
     #[serde(skip)]
     pub input: Input,
 }
@@ -50,25 +29,22 @@ impl<'a> FromConfig for Sim<'a> {
 
     fn from_config<'b>(config: Self::Config<'b>) -> Self {
         let physics = PhysicsWorld::from_config(&config.physics);
-        let player = Car::from_config(&config.car);
+        let car = Sedan::from_config(&config.car);
 
         Self {
             version: (0, 0, 0),
             config,
             car,
             physics,
-            checkpoint_iso: Isometry::identity(),
-            level_completed: false,
             settings: GameSettings::default(),
             input: Input::default(),
-            scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/1/scene.glb"),
-            car_gltf_bytes: include_bytes!("../../../assets/gltf/shared/player-character.glb"),
+            scene_gltf_bytes: include_bytes!("../../../assets/gltf/levels/2/scene.glb"),
             pois: PointsOfInterest::default(),
         }
     }
 
     fn set_config<'b>(&mut self, _config: Self::Config<'b>) {
-        warn!("Level 0 Sim doesn't allow resetting configuration");
+        warn!("Level 2 Sim doesn't allow resetting configuration");
     }
 }
 
@@ -78,11 +54,7 @@ impl<'a> Sim<'a> {
         self.scene_gltf_bytes
     }
 
-    pub fn player_gltf_bytes(&self) -> &[u8] {
-        self.player_gltf_bytes
-    }
-
-    pub fn send_level_event(&self, evt: Level1Event) {
+    pub fn send_level_event(&self, evt: Level2Event) {
         let level_event = evt.as_ref();
         unsafe { level_event_hook(level_event.as_ptr(), level_event.len()) };
     }
@@ -96,227 +68,14 @@ impl<'a> Sim<'a> {
         self.physics.load_from_gltf(&scene_gltf).unwrap();
         self.pois.load_from_gltf(&scene_gltf).unwrap();
 
-        self.animation_manager
-            .extend(AnimationManager::import_from_gltf(&scene_gltf));
-
-        self.checkpoint_iso = self.pois["Player Start"];
-
-        self.player.initialize(
-            &self.config.player,
-            &Gltf::from_slice(self.player_gltf_bytes).unwrap(),
+        self.car.initialize(
+            &self.config.car,
             &mut self.physics,
-            Some(self.pois["Player Start"]),
-            Some(String::from("PLAYER")),
+            Some(self.pois["Test Area Start"]),
+            Some(String::from("Sedan")),
         );
 
-        for platform in &mut self.moving_platforms {
-            platform.initialize(
-                vec![
-                    self.pois["Plat 3 End Point"],
-                    self.pois["Plat 3 Start Point"],
-                ],
-                &mut self.physics,
-            );
-        }
-
-        self.physics.listen_to_collider(
-            self.physics.named_sensors["Launch Sensor"],
-            ColliderEventRelayer::from(self.launch_sensor_event_channel.clone_sender()),
-        );
-
-        self.physics.listen_to_collider(
-            self.physics.named_sensors["Finish Sensor"],
-            ColliderEventRelayer::from(self.finish_sensor_event_channel.clone_sender()),
-        );
-
-        self.physics.listen_to_collider(
-            self.player.controller.collider_handle(),
-            ColliderEventRelayer::from(self.player_event_channel.clone_sender()),
-        );
-
-        self.physics.listen_to_collider(
-            self.physics.named_sensors["Halfway Platform Checkpoint"],
-            CheckpointEventRelayer::new(
-                self.checkpoint_event_channel.clone_sender(),
-                self.physics.named_sensors["Halfway Platform Checkpoint"],
-            ),
-        );
-
-        self.physics.listen_to_collider(
-            self.physics.named_sensors["Launch Platform Checkpoint"],
-            CheckpointEventRelayer::new(
-                self.checkpoint_event_channel.clone_sender(),
-                self.physics.named_sensors["Launch Platform Checkpoint"],
-            ),
-        );
-
-        loop_audio(self.player.scene_object_name(), "LEVEL_MUSIC", 1.0, 0.2);
-    }
-
-    fn launch_body_on_sensor_detection(&mut self) {
-        while let Ok(launch_sensor_event) = self.launch_sensor_event_channel.get_message() {
-            match launch_sensor_event {
-                ColliderEvent::IntersectionStart(other) => {
-                    let launch_direction = self.pois["Launch Iso"]
-                        .rotation
-                        .transform_vector(&FORWARD_VECTOR);
-
-                    // Get the rigid body of the other collider if it exists
-                    if let Some(other_body) = self
-                        .physics
-                        .collider_set
-                        .get(other)
-                        .and_then(|other_collider| other_collider.parent())
-                        .filter(|other_body_handle| {
-                            other_body_handle
-                                == &self.physics.named_rigid_bodies[self.player.descriptor.as_ref()]
-                        })
-                        .and_then(|other_body_handle| {
-                            self.physics.rigid_body_set.get_mut(other_body_handle)
-                        })
-                    {
-                        other_body.apply_impulse(
-                            launch_direction * self.config.launch_impulse * other_body.mass(),
-                            true,
-                        );
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    fn finish_game_on_finish_sensor_detection(&mut self) {
-        while let Ok(finish_sensor_event) = self.finish_sensor_event_channel.get_message() {
-            match finish_sensor_event {
-                ColliderEvent::IntersectionStart(other) => {
-                    // Get the rigid body of the other collider if it exists
-                    if self
-                        .physics
-                        .collider_set
-                        .get(other)
-                        .and_then(|other_collider| other_collider.parent())
-                        .filter(|other_body_handle| {
-                            other_body_handle
-                                == &self.physics.named_rigid_bodies[self.player.descriptor.as_ref()]
-                        })
-                        .is_some()
-                    {
-                        self.send_level_event(Level1Event::LevelCompleted);
-                        stop_audio(self.player.scene_object_name(), "LEVEL_MUSIC");
-                        play_audio(self.player.scene_object_name(), "LEVEL_VICTORY", 1.0, 0.5);
-                        self.level_completed = true;
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    fn reset_player_on_out_of_bounds(&mut self) {
-        while let Ok(player_collider_event) = self.player_event_channel.get_message() {
-            match player_collider_event {
-                ColliderEvent::IntersectionStart(other) => {
-                    if let Some(sensor_name) = self.physics.named_sensors.name_of_handle(&other) {
-                        if Descriptor::from_name(sensor_name).has_tag("oob") {
-                            if let Some(player_body) = self
-                                .physics
-                                .rigid_body_set
-                                .get_mut(self.player.controller.body_handle())
-                            {
-                                if !self.level_completed {
-                                    player_body.set_linvel(Vector3::zeros(), true);
-                                    player_body.set_position(self.checkpoint_iso, true);
-                                    play_audio(
-                                        self.player.scene_object_name(),
-                                        "PLAYER_RESET",
-                                        1.0,
-                                        0.3,
-                                    );
-                                    self.send_level_event(Level1Event::PlayerReset);
-                                }
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    fn relay_character_events_to_interface(&mut self) {
-        while let Ok(player_event) = self.player.get_event() {
-            match player_event {
-                CharacterControllerEvent::Stepped => {
-                    play_audio(self.player.scene_object_name(), "STEP", 1.0, 1.0)
-                }
-                CharacterControllerEvent::Jump => {
-                    play_audio(self.player.scene_object_name(), "JUMP", 1.0, 1.0)
-                }
-                CharacterControllerEvent::StartedWallRunning => {
-                    loop_audio(self.player.scene_object_name(), "WALLRUN", 1.0, 1.0)
-                }
-                CharacterControllerEvent::StoppedWallRunning => {
-                    stop_audio(self.player.scene_object_name(), "WALLRUN")
-                }
-                CharacterControllerEvent::StartedSliding => {
-                    loop_audio(self.player.scene_object_name(), "SLIDE", 1.0, 1.0)
-                }
-                CharacterControllerEvent::StoppedSliding => {
-                    stop_audio(self.player.scene_object_name(), "SLIDE")
-                }
-                _ => {}
-            };
-        }
-    }
-
-    fn handle_checkpoint_reached(&mut self) {
-        while let Ok((checkpoint_sensor_event, sensor_handle)) =
-            self.checkpoint_event_channel.get_message()
-        {
-            match checkpoint_sensor_event {
-                ColliderEvent::IntersectionStart(other) => {
-                    // Get the rigid body of the other collider if it exists
-                    if self
-                        .physics
-                        .collider_set
-                        .get(other)
-                        .and_then(|other_collider| other_collider.parent())
-                        .filter(|other_body_handle| {
-                            other_body_handle
-                                == &self.physics.named_rigid_bodies[self.player.descriptor.as_ref()]
-                        })
-                        .is_some()
-                    {
-                        if sensor_handle
-                            == self.physics.named_sensors["Halfway Platform Checkpoint"]
-                        {
-                            if self.checkpoint_index < 1 {
-                                self.checkpoint_iso = self.pois["Halfway Platform Start"];
-                                self.checkpoint_index = 1;
-                            }
-                        } else if sensor_handle
-                            == self.physics.named_sensors["Launch Platform Checkpoint"]
-                        {
-                            if self.checkpoint_index < 2 {
-                                self.checkpoint_iso = self.pois["Launch Platform Start"];
-                                self.checkpoint_index = 2;
-                            }
-                        } else {
-                            return;
-                        }
-                        play_audio(
-                            self.player.scene_object_name(),
-                            "CHECKPOINT_REACHED",
-                            1.0,
-                            0.2,
-                        );
-                        self.send_level_event(Level1Event::CheckpointReached);
-                    }
-                }
-                _ => {}
-            }
-        }
+        loop_audio(self.car.scene_object_name(), "LEVEL_MUSIC", 1.0, 0.2);
     }
 }
 
@@ -362,7 +121,7 @@ impl<'a> Sim<'a> {
     /// Step the game simulation by the provided number of seconds.
     pub fn step(&mut self, delta_seconds: f32) {
         self.car.update(
-            &self.config.player,
+            &self.config.car,
             &self.settings,
             &self.input,
             &mut self.physics,
@@ -408,15 +167,22 @@ impl<'a> Sim<'a> {
         self.input.set_rotate_right(new_magnitude);
     }
 
+    pub fn input_set_jump(&mut self, _new_magnitude: f32) {}
+    pub fn input_set_aim(&mut self, _new_magnitude: f32) {}
+
     #[slot_return]
     pub fn camera_global_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
-        // The player's head position
-        self.player.controller.camera_isometry()
+        self.car.controller.camera_isometry()
     }
 
     #[slot_return]
-    pub fn car_body_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
-        *self.car.body_isometry()
+    pub fn car_cabin_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+        *self.car.controller.cabin_isometry()
+    }
+
+    #[slot_return]
+    pub fn wheel_isometry(&self, wheel_idx: u32) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+        self.car.controller.wheel_isometry(wheel_idx as usize)
     }
 }
 

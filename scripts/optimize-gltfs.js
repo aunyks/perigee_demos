@@ -7,28 +7,14 @@ import {
   textureResize,
 } from 'https://esm.sh/@gltf-transform/functions@3.0.4'
 import * as path from 'https://deno.land/std/path/mod.ts'
-
-async function getNestedGltfs(searchPath) {
-  let names = []
-
-  for await (const dirEntry of Deno.readDir(searchPath)) {
-    const entryPath = `${searchPath}/${dirEntry.name}`
-    if (dirEntry.isDirectory) {
-      names.push(await getNestedGltfs(entryPath))
-    } else {
-      if (entryPath.endsWith('.glb')) {
-        names.push(entryPath)
-      }
-    }
-  }
-
-  return names.flat(1)
-}
+import { getNestedFileByName } from './util.js'
 
 const io = new DenoIO().registerExtensions(KHRONOS_EXTENSIONS)
 
 const gltfDirectory = path.joinGlobs([Deno.cwd(), 'assets', 'gltf'])
-for (const gltfPath of await getNestedGltfs(gltfDirectory)) {
+for (const gltfPath of await getNestedFileByName(gltfDirectory, (entryPath) =>
+  entryPath.endsWith('.glb')
+)) {
   const glbBytes = await Deno.readFile(gltfPath)
   const glbDocument = await io.readBinary(glbBytes)
 

@@ -26,12 +26,10 @@ fs.copyFileSync(
   fs.constants.COPYFILE_FICLONE
 )
 
-// Copy player camera animations from assets folder to
-// the dist glTF folder
-fs.copyFileSync(
-  path.joinGlobs([cwd, 'assets', 'gltf', 'shared', 'player-camera.glb']),
-  path.joinGlobs([cwd, 'dist', 'gltf', 'player', 'player-camera.glb']),
-  fs.constants.COPYFILE_FICLONE
+copySync(
+  path.joinGlobs([cwd, 'assets', 'gltf', 'shared']),
+  path.joinGlobs([cwd, 'dist', 'gltf']),
+  { overwrite: true }
 )
 
 // Copy shared sim utils to web interface
@@ -74,7 +72,7 @@ fs.readdirSync(gltfLevelsPath).forEach((fileOrDir) => {
       'js',
       'levels',
       levelName,
-      'Level1Sim.module.js',
+      `Level${levelName}Sim.module.js`,
     ])
 
     // Copy the level's JavaScript wrapper from the WASM crate / module

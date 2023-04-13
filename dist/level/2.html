@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <title>Time Attack Racer - Perigee Demos</title>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <link rel="stylesheet" href="/css/pico.min.css">
+        <link rel="stylesheet" href="/css/perigee.css">
+        <link rel="stylesheet" href="/css/virtual-joystick.css">
+        <link rel="stylesheet" href="/css/settings.css">
+        <style>
+            html,
+            body {
+                overflow: hidden;
+                touch-action: none;
+                -webkit-user-select: none;
+                user-select: none;
+            }
+
+            dialog {
+                user-select: auto;
+                touch-action: auto;
+            }
+
+            .hud.input {
+                -webkit-user-select: none;
+                user-select: none;
+                touch-action: auto;
+            }
+
+            #virtual-jump-button-container {
+                bottom: 180px;
+                right: 20px;
+            }
+
+            #virtual-jump-button {
+                fill: rgba(48, 48, 48, 0.8);
+                stroke: white;
+                stroke-width: 5px;
+                user-select: none;
+                position: absolute;
+            }
+
+            #virtual-jump-button.active {
+                fill: rgba(48, 48, 48, 0.2);
+            }
+
+            #virtual-crouch-button-container {
+                bottom: 105px;
+                right: 70px;
+            }
+
+            #virtual-crouch-button {
+                fill: rgba(48, 48, 48, 0.8);
+                stroke: white;
+                stroke-width: 5px;
+                user-select: none;
+                position: absolute;
+            }
+
+            #virtual-crouch-button.active {
+                fill: rgba(48, 48, 48, 0.2);
+            }
+
+            .controls-tutorial-section-head {
+                margin-bottom: 0.5rem;
+            }
+
+            #pause-button {
+                position: absolute;
+                top: 40px;
+                right: 30px;
+            }
+
+            #loading-container {
+                position: relative;
+                z-index: 2;
+            }
+
+            #notification-container {
+                position: relative;
+                display: flex;
+                justify-content: center;
+                padding-top: 6.5em;
+                pointer-events: none;
+                z-index: 1;
+            }
+
+            #notification-banner {
+                padding: 5px 10px;
+                border-radius: 5px;
+                opacity: 0;
+                transition: opacity 0.25s;
+            }
+
+            #notification-banner.active {
+                opacity: 1;
+            }
+
+            #notification-banner.info {
+                color: black;
+                background: white;
+            }
+
+            #notification-banner.success {
+                color: white;
+                background: #0d0;
+            }
+
+            #notification-banner.warn {
+                color: white;
+                background: #bb0;
+            }
+
+        </style>
+    </head>
+
+    <body>
+        <p id="ad-announcer" visually-hidden="true" aria-live="polite"></p>
+        <div id="stacking-container">
+            <div id="loading-container">
+                <div>
+                    <h1 aria-busy="true">Loading world</h1>
+                </div>
+            </div>
+            <div id="notification-container">
+                <div>
+                    <h2 id="notification-banner">Checkpoint reached</h2>
+                </div>
+            </div>
+            <div id="scene-container" class="hidden">
+                <canvas id="scene-canvas"></canvas>
+                <svg role="button" id="pause-button" width="50" height="50" class="hud input" viewBox="0 0 100 100"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <rect width="100" height="100" rx="20" fill="black" />
+                    <rect x="26" y="27" width="16" height="46" fill="white" />
+                    <rect x="58" y="27" width="16" height="46" fill="white" />
+                </svg>
+                <svg id="virtual-joystick-container" class="hud input" width="160" viewBox="0 0 368 368"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="184" cy="184" r="110" />
+                    <circle id="virtual-joystick" cx="184" cy="184" r="100" />
+                </svg>
+                <svg id="virtual-jump-button-container"
+                    ontouchstart="document.getElementById('virtual-jump-button').classList.add('active')"
+                    ontouchend="document.getElementById('virtual-jump-button').classList.remove('active')"
+                    class="hud input" width="80" viewBox="0 0 368 368" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="184" cy="184" r="184"></circle>
+                    <circle id="virtual-jump-button" cx="184" cy="184" r="174"></circle>
+                    <text x="100" y="210" font-size="4.5em" fill="white" style="user-select: none;">Jump</text>
+                </svg>
+                <!-- <svg id="virtual-crouch-button-container"
+          ontouchstart="document.getElementById('virtual-crouch-button').classList.add('active')"
+          ontouchend="document.getElementById('virtual-crouch-button').classList.remove('active')" class="hud input"
+          width="80" viewBox="0 0 368 368" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="184" cy="184" r="184"></circle>
+          <circle id="virtual-crouch-button" cx="184" cy="184" r="174"></circle>
+          <text x="70" y="210" font-size="4.5em" fill="white" style="user-select: none;">Crouch</text>
+        </svg> -->
+            </div>
+        </div>
+        <dialog role="dialog" aria-labelledby="intro-title" aria-describedby="intro-content" id="intro-modal"
+            can-exit="false">
+            <article>
+                <h1 id="intro-title">Time Attack Racer</h1>
+                <p id="intro-content"> Drive your fastest lap then beat your time again.</em></p>
+                <details style="margin-bottom: 1rem;">
+                    <summary>See controls</summary>
+                    <div tabindex="0">
+                        <h3 class="controls-tutorial-section-head">Pause</h3>
+                        <ul>
+                            <li>Escape (Keyboard)</li>
+                            <li>Start (Controller)</li>
+                            <li>On-Screen Button (Touch Screen)</li>
+                        </ul>
+                        <h3 class="controls-tutorial-section-head">Move</h3>
+                        <ul>
+                            <li>WASD (Keyboard)</li>
+                            <li>Left Stick (Controller)</li>
+                            <li>On-Screen Stick (Touch Screen)</li>
+                        </ul>
+                        <h3 class="controls-tutorial-section-head">Jump</h3>
+                        <ul>
+                            <li>Spacebar (Keyboard)</li>
+                            <li>Button Pad South (Controller)</li>
+                            <li>On-Screen Jump Button (Touch Screen)</li>
+                        </ul>
+                    </div>
+                </details>
+                <button id="start-game-button">Start Game</button>
+            </article>
+        </dialog>
+        <dialog role="dialog" aria-label="Pause menu" id="pause-modal" can-exit="false">
+            <article>
+                <button id="resume-game-button">Resume</button>
+                <button id="restart-level-button">Restart Level</button>
+                <button id="settings-button">Settings</button>
+                <button id="quit-game-button">Quit Game</button>
+            </article>
+        </dialog>
+        <dialog role="dialog" aria-label="Confirm restart" id="restart-level-conf-modal" can-exit="false">
+            <article>
+                <h2>Are you sure?</h2>
+                <p>This will restart the entire level and ignore your current progress.</p>
+                <div class="grid">
+                    <button id="restart-level-conf-button">Yes</button>
+                    <button id="restart-level-deny-button">No</button>
+                </div>
+            </article>
+        </dialog>
+        <dialog role="dialog" aria-label="Settings" id="settings-modal" can-exit="false" class="settings-modal">
+            <article>
+                <label for="master-volume-slider">Master Volume</label>
+                <input id="master-volume-slider" type="range" min="0" max="100" value="100" />
+                <label for="horiz-sens-slider">Horizontal Look Sensitivity</label>
+                <input id="horiz-sens-slider" type="range" min="1" max="10" step="1" value="5" list="horiz-sens-list" />
+                <datalist id="horiz-sens-list">
+                    <option>1</option>
+                    <option>2</option>
+                    <option>3</option>
+                    <option>4</option>
+                    <option>5</option>
+                    <option>6</option>
+                    <option>7</option>
+                    <option>8</option>
+                    <option>9</option>
+                    <option>10</option>
+                </datalist>
+                <label for="vert-sens-slider">Vertical Look Sensitivity</label>
+                <input id="vert-sens-slider" type="range" min="1" max="10" step="1" value="5" list="vert-sens-list" />
+                <datalist id="vert-sens-list">
+                    <option>1</option>
+                    <option>2</option>
+                    <option>3</option>
+                    <option>4</option>
+                    <option>5</option>
+                    <option>6</option>
+                    <option>7</option>
+                    <option>8</option>
+                    <option>9</option>
+                    <option>10</option>
+                </datalist>
+                <label for="perf-stats-toggle" data-debug="true">Show Performance Stats</label>
+                <input id="perf-stats-toggle" type="checkbox" />
+                <label for="debug-tools-toggle" data-debug="true">Show Debug Tools</label>
+                <input id="debug-tools-toggle" type="checkbox" />
+                <button id="settings-back-button">Back</button>
+            </article>
+        </dialog>
+        <dialog role="dialog" id="error-modal" can-exit="false">
+            <article>
+                <h2>An error occurred while loading assets.</h2>
+                <a role="button" href="">Try again</a>
+            </article>
+        </dialog>
+        <dialog role="dialog" id="post-level-modal" can-exit="false">
+            <article>
+                <h1><em>You are speed</em></h1>
+                <p>You've beat the racer. Play it again or try the time attack racer level. Check out other levels if
+                    you want something different.</p>
+                <a role="button" href="">Play again</a>
+                <div style="display: flex; flex-direction: row; justify-content: space-between;">
+                    <a role="button" href="/level/1">Previous level</a>
+                    <button disabled>Next level (Coming soon)</button>
+                </div>
+                <a role="button" href="/">See more</a>
+            </article>
+        </dialog>
+        <script src="/js/misc/mobile-safari-disable-pinch-zoom.js"></script>
+        <script type="module" src="/js/levels/2/index.js"></script>
+    </body>
+
+</html>

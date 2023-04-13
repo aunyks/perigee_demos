@@ -78,7 +78,7 @@ impl<'a> FromConfig for Sim<'a> {
     }
 
     fn set_config<'b>(&mut self, _config: Self::Config<'b>) {
-        warn!("Level 0 Sim doesn't allow resetting configuration");
+        warn!("Level 1 Sim doesn't allow resetting configuration");
     }
 }
 

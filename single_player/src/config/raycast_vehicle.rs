@@ -1,5 +1,5 @@
 use getset::Getters;
-use perigee::rapier3d::control::WheelTuning;
+use perigee::{prelude::Point, rapier3d::control::WheelTuning};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -34,6 +34,7 @@ pub struct RaycastVehicleConfig {
     pub wheels: Vec<WheelConfig>,
     pub suspension_rest_length: f32,
     pub wheel_radius: f32,
+    pub cabin_center_of_mass: Point<f32>,
 }
 
 impl Default for RaycastVehicleConfig {
@@ -45,6 +46,7 @@ impl Default for RaycastVehicleConfig {
             cabin_half_width,
             cabin_half_height,
             cabin_half_length,
+            cabin_center_of_mass: Point::new(0.0, -cabin_half_height, 0.0),
             suspension_spring_stiffness: 150.0,
             suspension_spring_dampening: 12.0,
             mass: 100.0,
