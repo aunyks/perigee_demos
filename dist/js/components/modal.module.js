@@ -32,14 +32,8 @@ const isScrollbarVisible = () => {
 }
 
 // Toggle modal
-const toggleModal = (event) => {
-  event.preventDefault()
-  const modal = document.getElementById(
-    event.target.getAttribute('data-target')
-  )
-  typeof modal != 'undefined' && modal != null && isModalOpen(modal)
-    ? closeModal(modal)
-    : openModal(modal)
+const toggleModal = (modalId) => {
+  isModalOpen(modalId) ? closeModal(modalId) : openModal(modalId)
 }
 
 function modalWithId(modalId) {
@@ -54,14 +48,16 @@ function modalWithId(modalId) {
 }
 
 // Is modal open
-const isModalOpen = (modal) => {
+const isModalOpen = (modalId) => {
+  const modal = document.getElementById(modalId)
   return modal.hasAttribute('open') && modal.getAttribute('open') != 'false'
     ? true
     : false
 }
 
 // Open modal
-const openModal = (modal) => {
+const openModal = (modalId) => {
+  const modal = document.getElementById(modalId)
   if (isScrollbarVisible()) {
     document.documentElement.style.setProperty(
       '--scrollbar-width',
@@ -79,7 +75,8 @@ const openModal = (modal) => {
 }
 
 // Close modal
-const closeModal = (modal) => {
+const closeModal = (modalId) => {
+  const modal = document.getElementById(modalId)
   visibleModal = null
   document.documentElement.classList.add(closingClass)
   setTimeout(() => {

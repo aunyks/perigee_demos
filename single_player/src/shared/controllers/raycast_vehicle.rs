@@ -1,7 +1,5 @@
 use crate::config::raycast_vehicle::RaycastVehicleConfig;
-use crate::shared::boom::Boom;
 use crate::shared::input::Input;
-use crate::shared::settings::GameSettings;
 use perigee::rapier3d::control::DynamicRayCastVehicleController;
 use perigee::{prelude::*, rapier3d::control::WheelTuning};
 use serde::{Deserialize, Serialize};
@@ -12,7 +10,6 @@ fn default_rapier_vehicle() -> DynamicRayCastVehicleController {
 
 #[derive(Serialize, Deserialize)]
 pub struct RaycastVehicleController {
-    camera_boom: Boom,
     cabin_body_handle: RigidBodyHandle,
     cabin_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
     #[serde(skip, default = "default_rapier_vehicle")]
@@ -21,19 +18,13 @@ pub struct RaycastVehicleController {
 
 impl FromConfig for RaycastVehicleController {
     type Config<'a> = &'a RaycastVehicleConfig;
-    fn from_config<'a>(config: Self::Config<'a>) -> Self {
+    fn from_config<'a>(_config: Self::Config<'a>) -> Self {
         let cabin_body_handle = RigidBodyHandle::default();
         let rapier_vehicle = DynamicRayCastVehicleController::new(cabin_body_handle);
         Self {
             cabin_body_handle,
             rapier_vehicle,
             cabin_isometry: Isometry::default(),
-            camera_boom: Boom::new(
-                config.max_boom_length,
-                config.initial_boom_pitch_angle,
-                config.initial_boom_yaw_angle,
-                true,
-            ),
         }
     }
 }
@@ -92,16 +83,12 @@ impl RaycastVehicleController {
         }
     }
 
-    pub fn body_handle(&self) -> RigidBodyHandle {
+    pub fn cabin_body_handle(&self) -> RigidBodyHandle {
         self.cabin_body_handle
     }
 
     pub fn cabin_isometry(&self) -> &Isometry<f32, UnitQuaternion<f32>, 3> {
         &self.cabin_isometry
-    }
-
-    pub fn camera_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
-        self.camera_boom.end_isometry()
     }
 
     pub fn wheel_isometry(&self, wheel_idx: usize) -> Isometry<f32, UnitQuaternion<f32>, 3> {
@@ -113,63 +100,9 @@ impl RaycastVehicleController {
         )
     }
 
-    fn update_boom_isometry(
-        boom: &mut Boom,
-        cabin_body: &RigidBody,
-        yaw_magnitude: f32,
-        pitch_magnitude: f32,
-        min_pitch_angle: f32,
-        max_pitch_angle: f32,
-    ) {
-        boom.translation = cabin_body.position().translation;
-
-        boom.z_rotation =
-            boom.z_rotation
-                .append_axisangle_linearized(&Vector3::new(0.0, yaw_magnitude, 0.0));
-
-        let (x_roll, x_pitch, x_yaw) = boom.x_rotation.euler_angles();
-        boom.x_rotation = UnitQuaternion::from_euler_angles(
-            (x_roll + pitch_magnitude)
-                .clamp(max_pitch_angle.to_radians(), min_pitch_angle.to_radians()),
-            x_pitch,
-            x_yaw,
-        );
-    }
-
-    fn prevent_camera_obstructions(
-        camera_boom: &mut Boom,
-        config: &RaycastVehicleConfig,
-        cabin_body: &RigidBody,
-        query_pipeline: &QueryPipeline,
-        rigid_body_set: &RigidBodySet,
-        collider_set: &ColliderSet,
-        query_filter_excluding_cabin: QueryFilter,
-    ) {
-        let body_translation = cabin_body.position().translation;
-        let diff_vec = camera_boom.end_isometry().translation.vector - body_translation.vector;
-        if let Some((_handle, hit_toi)) = query_pipeline.cast_ray(
-            rigid_body_set,
-            collider_set,
-            &Ray::new(
-                Point {
-                    coords: body_translation.vector,
-                },
-                diff_vec.normalize(),
-            ),
-            config.max_boom_length,
-            true,
-            query_filter_excluding_cabin,
-        ) {
-            camera_boom.set_length(hit_toi - 0.03);
-        } else {
-            camera_boom.set_length(config.max_boom_length);
-        }
-    }
-
     pub fn update(
         &mut self,
         config: &RaycastVehicleConfig,
-        settings: &GameSettings,
         input: &Input,
         physics: &mut PhysicsWorld,
         delta_seconds: f32,
@@ -201,27 +134,6 @@ impl RaycastVehicleController {
 
         if let Some(cabin_body) = physics.rigid_body_set.get(self.cabin_body_handle) {
             self.cabin_isometry = *cabin_body.position();
-
-            Self::update_boom_isometry(
-                &mut self.camera_boom,
-                cabin_body,
-                -input.rotate_right()
-                    * (2.5 * f32::from(settings.left_right_look_sensitivity()) / 5.0).to_radians(),
-                input.rotate_up()
-                    * (5.0 * f32::from(settings.up_down_look_sensitivity()) / 5.0).to_radians(),
-                config.max_look_up_angle,
-                config.min_look_up_angle,
-            );
-
-            Self::prevent_camera_obstructions(
-                &mut self.camera_boom,
-                &config,
-                cabin_body,
-                &physics.query_pipeline,
-                &physics.rigid_body_set,
-                &physics.collider_set,
-                QueryFilter::new().exclude_rigid_body(self.cabin_body_handle),
-            );
         }
     }
 }

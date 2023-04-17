@@ -38,9 +38,14 @@ import {
 } from '/js/graphics/three-ext/utils.module.js'
 import SkyDome from '/js/graphics/prefabs/skydome.module.js'
 import Sun from '/js/graphics/prefabs/sun.module.js'
-import { toggleModal, modalWithId } from '/js/components/modal.module.js'
+import {
+  toggleModal,
+  modalWithId,
+  isModalOpen,
+  openModal,
+  closeModal,
+} from '/js/components/modal.module.js'
 import { bindSettings } from '/js/interface/settings.module.js'
-import MarkerCylinder from '/js/graphics/prefabs/MarkerCylinder.module.js'
 
 const loadingContainer = document.getElementById('loading-container')
 const sceneContainer = document.getElementById('scene-container')
@@ -180,7 +185,7 @@ Promise.all(assetsToLoad)
           if (document.exitPointerLock !== undefined) {
             document.exitPointerLock()
           }
-          toggleModal(modalWithId('post-level-modal'))
+          toggleModal('post-level-modal')
         })
       })
 
@@ -407,14 +412,18 @@ Promise.all(assetsToLoad)
       window.addEventListener('resize', resetCameraProjection, false)
 
       function pauseGame() {
-        stopGameplay()
-        toggleModal(modalWithId('pause-modal'))
-        adAnnounce('Pause menu opened')
+        if (!isModalOpen('pause-modal')) {
+          stopGameplay()
+          openModal('pause-modal')
+          adAnnounce('Pause menu opened')
+        }
       }
 
       function resumeGame() {
-        toggleModal(modalWithId('pause-modal'))
-        startGameplay()
+        if (isModalOpen('pause-modal')) {
+          closeModal('pause-modal')
+          startGameplay()
+        }
       }
 
       function resetGame() {
@@ -424,7 +433,11 @@ Promise.all(assetsToLoad)
 
       document.body.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-          pauseGame()
+          if (isModalOpen('pause-modal')) {
+            resumeGame()
+          } else {
+            pauseGame()
+          }
         }
       })
 
@@ -437,14 +450,14 @@ Promise.all(assetsToLoad)
       document
         .getElementById('restart-level-button')
         .addEventListener('click', () => {
-          toggleModal(modalWithId('pause-modal'))
-          toggleModal(modalWithId('restart-level-conf-modal'))
+          toggleModal('pause-modal')
+          toggleModal('restart-level-conf-modal')
         })
 
       document
         .getElementById('restart-level-conf-button')
         .addEventListener('click', () => {
-          toggleModal(modalWithId('restart-level-conf-modal'))
+          toggleModal('restart-level-conf-modal')
           resetGame()
           startGameplay()
         })
@@ -452,22 +465,22 @@ Promise.all(assetsToLoad)
       document
         .getElementById('restart-level-deny-button')
         .addEventListener('click', () => {
-          toggleModal(modalWithId('restart-level-conf-modal'))
-          toggleModal(modalWithId('pause-modal'))
+          toggleModal('restart-level-conf-modal')
+          toggleModal('pause-modal')
         })
 
       document
         .getElementById('settings-button')
         .addEventListener('click', () => {
-          toggleModal(modalWithId('pause-modal'))
-          toggleModal(modalWithId('settings-modal'))
+          toggleModal('pause-modal')
+          toggleModal('settings-modal')
         })
 
       document
         .getElementById('settings-back-button')
         .addEventListener('click', () => {
-          toggleModal(modalWithId('settings-modal'))
-          toggleModal(modalWithId('pause-modal'))
+          toggleModal('settings-modal')
+          toggleModal('pause-modal')
         })
 
       document
@@ -484,12 +497,12 @@ Promise.all(assetsToLoad)
       })
 
       renderer.compile(mainScene, activeCamera)
-      toggleModal(modalWithId('intro-modal'))
+      toggleModal('intro-modal')
       const startBtn = document.getElementById('start-game-button')
       startBtn.addEventListener('click', () => {
         resetCameraProjection()
         startGameplay()
-        toggleModal(modalWithId('intro-modal'))
+        toggleModal('intro-modal')
         levelStarted = true
       })
       adAnnounce('Loading complete')
@@ -497,5 +510,5 @@ Promise.all(assetsToLoad)
   )
   .catch((e) => {
     console.error(e)
-    toggleModal(modalWithId('error-modal'))
+    toggleModal('error-modal')
   })

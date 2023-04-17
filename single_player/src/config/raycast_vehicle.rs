@@ -25,11 +25,6 @@ pub struct RaycastVehicleConfig {
     pub wheel_grip: f32,
     pub wheel_left_turn_angle: f32,
     pub wheel_right_turn_angle: f32,
-    pub max_look_up_angle: f32,
-    pub min_look_up_angle: f32,
-    pub max_boom_length: f32,
-    pub initial_boom_pitch_angle: f32,
-    pub initial_boom_yaw_angle: f32,
     #[getset(get = "pub")]
     pub wheels: Vec<WheelConfig>,
     pub suspension_rest_length: f32,
@@ -52,16 +47,11 @@ impl Default for RaycastVehicleConfig {
             mass: 100.0,
             suspension_rest_length: cabin_half_height,
             wheel_radius: cabin_half_height / 4.0,
-            initial_boom_pitch_angle: -10.0,
-            initial_boom_yaw_angle: 0.0,
             brake_force: 30.0,
             throttle_force: 30.0,
             wheel_grip: 10.5,
             wheel_left_turn_angle: 40.0,
             wheel_right_turn_angle: -40.0,
-            max_look_up_angle: 90.0,
-            min_look_up_angle: -60.0,
-            max_boom_length: 3.0,
             wheels: vec![
                 WheelConfig {
                     suspension_rest_length: None,

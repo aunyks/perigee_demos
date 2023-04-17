@@ -71,7 +71,7 @@ impl<'a> Sim<'a> {
         self.car.initialize(
             &self.config.car,
             &mut self.physics,
-            Some(self.pois["Test Area Start"]),
+            Some(self.pois["Track Start"]),
             Some(String::from("Sedan")),
         );
 
@@ -172,7 +172,7 @@ impl<'a> Sim<'a> {
 
     #[slot_return]
     pub fn camera_global_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
-        self.car.controller.camera_isometry()
+        self.car.camera_isometry()
     }
 
     #[slot_return]
