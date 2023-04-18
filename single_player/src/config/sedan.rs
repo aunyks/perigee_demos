@@ -39,10 +39,10 @@ impl Default for SedanConfig {
             max_boom_length: 6.0,
             max_look_up_angle: 90.0,
             min_look_up_angle: -60.0,
-            initial_camera_mode: CameraMode::Track,
+            initial_camera_mode: CameraMode::Free,
             track_mode_look_pitch_angle: -15.0,
             track_mode_look_yaw_angle: 0.0,
-            track_mode_cam_lerp_factor: 0.9999,
+            track_mode_cam_lerp_factor: 0.99999995,
             raycast_vehicle_controller: RaycastVehicleConfig {
                 cabin_half_height,
                 cabin_half_length,

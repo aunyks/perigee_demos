@@ -18,11 +18,6 @@ import {
   PositionalAudio,
   Audio,
 } from '/js/graphics/three.module.js'
-import { EffectComposer } from '/js/graphics/postprocessing/EffectComposer.js'
-import { RenderPass } from '/js/graphics/postprocessing/RenderPass.js'
-import { UnrealBloomPass } from '/js/graphics/postprocessing/UnrealBloomPass.js'
-import { ShaderPass } from '/js/graphics/postprocessing/ShaderPass.js'
-import { FXAAShader } from '/js/graphics/postprocessing/shaders/FXAAShader.js'
 import { GameInput } from '/js/input/game-input.module.js'
 import { Level2Sim } from '/js/levels/2/Level2Sim.module.js'
 import {
@@ -99,7 +94,7 @@ Promise.all(assetsToLoad)
       renderer.physicallyCorrectLights = true
       ColorManagement.enabled = true
       ColorManagement.legacyMode = false
-      renderer.toneMappingExposure = 1
+      renderer.toneMappingExposure = 2.5
       renderer.outputEncoding = sRGBEncoding
       renderer.toneMapping = ACESFilmicToneMapping
       sceneContainer.append(renderer.domElement)
@@ -137,7 +132,9 @@ Promise.all(assetsToLoad)
       })
 
       mainScene.add(sceneGltf.scene)
-      mainScene.add(new DirectionalLight(0xffffff, 10))
+      const ambientLight = new DirectionalLight(0xffffff, 1)
+      ambientLight.position.set(-1, 1, 1)
+      mainScene.add(ambientLight)
 
       const animatedCamera = animatedCameraGltf.cameras[0]
       animatedCamera.fov = 35
@@ -315,18 +312,6 @@ Promise.all(assetsToLoad)
       const desiredTimestep = 1 / sim.desiredFps()
       const MAX_FRAMES_TO_DROP = 3
 
-      const postProcessComposer = new EffectComposer(renderer)
-      postProcessComposer.addPass(new RenderPass(mainScene, activeCamera))
-      postProcessComposer.addPass(
-        new UnrealBloomPass(
-          new Vector2(sceneContainer.offsetWidth, sceneContainer.offsetHeight),
-          0.7,
-          3,
-          0.99
-        )
-      )
-      postProcessComposer.addPass(new ShaderPass(FXAAShader))
-
       function onGameLoopTick(tFrame) {
         deltaT = Math.abs(tFrame - lastTimestamp)
         perfStatistics.begin()
@@ -378,7 +363,7 @@ Promise.all(assetsToLoad)
 
           activeCamera.getWorldPosition(backgroundEnvironment.position)
 
-          postProcessComposer.render(deltaSeconds)
+          renderer.render(mainScene, activeCamera)
         }
         perfStatistics.end()
         lastTimestamp = tFrame
