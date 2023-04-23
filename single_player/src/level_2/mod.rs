@@ -65,7 +65,7 @@ impl<'a> Sim<'a> {
         // modeling tool.
         let scene_gltf = Gltf::from_slice(self.scene_gltf_bytes).unwrap();
 
-        self.physics.load_from_gltf(&scene_gltf).unwrap();
+        self.physics.load_from_gltf(&scene_gltf, None).unwrap();
         self.pois.load_from_gltf(&scene_gltf).unwrap();
 
         self.car.initialize(
@@ -90,7 +90,7 @@ impl<'a> Sim<'a> {
     }
 
     #[slot_return]
-    pub fn prop_isometry(&self, prop_name: &str) -> &Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn prop_isometry(&self, prop_name: &str) -> &Isometry3<f32> {
         let prop_body_handle = self
             .physics
             .named_rigid_bodies
@@ -104,7 +104,7 @@ impl<'a> Sim<'a> {
     }
 
     #[slot_return]
-    pub fn poi(&self, poi_name: &str) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn poi(&self, poi_name: &str) -> Isometry3<f32> {
         self.pois[poi_name]
     }
 
@@ -171,17 +171,17 @@ impl<'a> Sim<'a> {
     pub fn input_set_aim(&mut self, _new_magnitude: f32) {}
 
     #[slot_return]
-    pub fn camera_global_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn camera_global_isometry(&self) -> Isometry3<f32> {
         self.car.camera_isometry()
     }
 
     #[slot_return]
-    pub fn car_cabin_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn car_cabin_isometry(&self) -> Isometry3<f32> {
         *self.car.controller.cabin_isometry()
     }
 
     #[slot_return]
-    pub fn wheel_isometry(&self, wheel_idx: u32) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn wheel_isometry(&self, wheel_idx: u32) -> Isometry3<f32> {
         self.car.controller.wheel_isometry(wheel_idx as usize)
     }
 }

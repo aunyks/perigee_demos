@@ -6,7 +6,7 @@ pub struct Boom {
     pub translation: Translation<f32>,
     pub z_rotation: UnitQuaternion<f32>,
     pub x_rotation: UnitQuaternion<f32>,
-    arm_pivot: Isometry<f32, UnitQuaternion<f32>, 3>,
+    arm_pivot: Isometry3<f32>,
     length: f32,
     look_at_pivot: bool,
 }
@@ -42,11 +42,11 @@ impl Boom {
         self.length
     }
 
-    pub fn isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn isometry(&self) -> Isometry3<f32> {
         Isometry::from_parts(self.translation, self.z_rotation * self.x_rotation)
     }
 
-    pub fn end_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn end_isometry(&self) -> Isometry3<f32> {
         self.isometry()
             * self.arm_pivot
             * Isometry::from_parts(

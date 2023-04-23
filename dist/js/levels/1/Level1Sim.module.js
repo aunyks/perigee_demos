@@ -33,8 +33,7 @@ class Level1Sim extends Simulation {
 
     // const vecPtr = wasmExports.allocate_vector3f32_space()
     // const quatPtr = wasmExports.allocate_unitquaternionf32_space()
-    this._isometryPointer =
-      this._wasmExports.allocate_isometry_f32_unitquaternion_f32__3__space()
+    this._isometryPointer = this._wasmExports.allocate_isometry3_f32__space()
     this._simPointer = this._wasmExports.create_sim()
   }
 

@@ -428,9 +428,9 @@ checksum = "b1de2e551fb905ac83f73f7aedf2f0cb4a0da7e35efa24a202a936269f1f18e1"
 
 [[package]]
 name = "perigee"
-version = "0.5.5"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96b26367253229ce99b89bd1f90e7f322fa957219e717371d87a885b649d262c"
+checksum = "ee549c5c39fcdfac3ab42db42baadb7301a192f0018bb8c529e40763e357ff38"
 dependencies = [
  "bincode",
  "crossbeam",

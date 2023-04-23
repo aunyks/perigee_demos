@@ -11,7 +11,7 @@ fn default_rapier_vehicle() -> DynamicRayCastVehicleController {
 #[derive(Serialize, Deserialize)]
 pub struct RaycastVehicleController {
     cabin_body_handle: RigidBodyHandle,
-    cabin_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
+    cabin_isometry: Isometry3<f32>,
     #[serde(skip, default = "default_rapier_vehicle")]
     rapier_vehicle: DynamicRayCastVehicleController,
 }
@@ -35,7 +35,7 @@ impl RaycastVehicleController {
         config: &RaycastVehicleConfig,
         rigid_body_set: &mut RigidBodySet,
         collider_set: &mut ColliderSet,
-        initial_isometry: Option<Isometry<f32, UnitQuaternion<f32>, 3>>,
+        initial_isometry: Option<Isometry3<f32>>,
     ) {
         let initial_isometry = if let Some(initial_isometry) = initial_isometry {
             initial_isometry
@@ -87,11 +87,11 @@ impl RaycastVehicleController {
         self.cabin_body_handle
     }
 
-    pub fn cabin_isometry(&self) -> &Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn cabin_isometry(&self) -> &Isometry3<f32> {
         &self.cabin_isometry
     }
 
-    pub fn wheel_isometry(&self, wheel_idx: usize) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn wheel_isometry(&self, wheel_idx: usize) -> Isometry3<f32> {
         let wheel = self.rapier_vehicle.wheels()[wheel_idx];
         Isometry::from_parts(
             wheel.center().into(),

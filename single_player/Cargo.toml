@@ -17,7 +17,7 @@ level_2 = []
 
 [dependencies]
 # https://github.com/aunyks/perigee
-perigee = { version = "0.5.5", features = ["ffi"] }
+perigee = { version = "0.6.0", features = ["ffi"] }
 
 # https://github.com/serde-rs/serde
 serde = { version = "1.0.97", features = ["derive", "rc"] }

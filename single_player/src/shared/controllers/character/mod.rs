@@ -17,8 +17,8 @@ pub struct CharacterController {
     head_x_rotation: UnitQuaternion<f32>,
     // Head tilt rotation
     head_z_rotation: UnitQuaternion<f32>,
-    head_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
-    body_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
+    head_isometry: Isometry3<f32>,
+    body_isometry: Isometry3<f32>,
     pub boom: Boom,
     default_boom: Boom,
     aim_boom: Boom,
@@ -125,7 +125,7 @@ impl CharacterController {
         config: &CharacterControllerConfig,
         rigid_body_set: &mut RigidBodySet,
         collider_set: &mut ColliderSet,
-        initial_isometry: Option<Isometry<f32, UnitQuaternion<f32>, 3>>,
+        initial_isometry: Option<Isometry3<f32>>,
     ) {
         let initial_isometry = if let Some(initial_isometry) = initial_isometry {
             initial_isometry
@@ -377,7 +377,7 @@ impl CharacterController {
     }
 
     fn update_body_isometry(&mut self, rigid_body_set: &mut RigidBodySet) {
-        let mut body_isometry: Isometry<f32, UnitQuaternion<f32>, 3> = Isometry::identity();
+        let mut body_isometry: Isometry3<f32> = Isometry::identity();
         let body_handle = self.body_handle();
         if let Some(body) = rigid_body_set.get_mut(body_handle) {
             body_isometry = *body.position();
@@ -575,7 +575,7 @@ impl CharacterController {
         }
     }
 
-    pub fn camera_isometry(&self) -> Isometry<f32, Unit<Quaternion<f32>>, 3> {
+    pub fn camera_isometry(&self) -> Isometry3<f32> {
         match self.perspective_mode.current_state() {
             CharacterPerspectiveMode::ThirdPersonBasic
             | CharacterPerspectiveMode::ThirdPersonCombat => self.boom.end_isometry(),
@@ -603,32 +603,26 @@ impl CharacterController {
         self.head_x_rotation * self.head_z_rotation
     }
 
-    pub fn head_standing_isometry(
-        &self,
-        config: &CharacterControllerConfig,
-    ) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn head_standing_isometry(&self, config: &CharacterControllerConfig) -> Isometry3<f32> {
         Isometry::from_parts(
             config.standing_head_translation_offset.into(),
             self.head_rotation(),
         )
     }
 
-    pub fn head_crouched_isometry(
-        &self,
-        config: &CharacterControllerConfig,
-    ) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn head_crouched_isometry(&self, config: &CharacterControllerConfig) -> Isometry3<f32> {
         Isometry::from_parts(
             config.crouched_head_translation_offset.into(),
             self.head_rotation(),
         )
     }
 
-    pub fn head_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn head_isometry(&self) -> Isometry3<f32> {
         self.head_isometry
     }
 
     /// Get the isometry (position and orientation) of the character controller's rigid body.
-    pub fn body_isometry(&self) -> &Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn body_isometry(&self) -> &Isometry3<f32> {
         &self.body_isometry
     }
 
@@ -644,7 +638,7 @@ impl CharacterController {
         &self.body_linear_velocity
     }
 
-    pub fn pivot_isometry(&self) -> Isometry<f32, Unit<Quaternion<f32>>, 3> {
+    pub fn pivot_isometry(&self) -> Isometry3<f32> {
         match self.perspective_mode.current_state() {
             CharacterPerspectiveMode::ThirdPersonBasic
             | CharacterPerspectiveMode::ThirdPersonCombat => {

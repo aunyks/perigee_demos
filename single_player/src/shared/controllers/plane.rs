@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct PlaneController {
     fuselage_body_handle: RigidBodyHandle,
-    fuselage_isometry: Isometry<f32, UnitQuaternion<f32>, 3>,
+    fuselage_isometry: Isometry3<f32>,
     camera_boom: Boom,
     air_density: f32,
 }
@@ -37,7 +37,7 @@ impl PlaneController {
         config: &PlaneControllerConfig,
         rigid_body_set: &mut RigidBodySet,
         collider_set: &mut ColliderSet,
-        initial_isometry: Option<Isometry<f32, UnitQuaternion<f32>, 3>>,
+        initial_isometry: Option<Isometry3<f32>>,
     ) {
         let initial_isometry = if let Some(initial_isometry) = initial_isometry {
             initial_isometry
@@ -69,11 +69,11 @@ impl PlaneController {
         self.fuselage_body_handle
     }
 
-    pub fn fuselage_isometry(&self) -> &Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn fuselage_isometry(&self) -> &Isometry3<f32> {
         &self.fuselage_isometry
     }
 
-    pub fn camera_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn camera_isometry(&self) -> Isometry3<f32> {
         self.camera_boom.end_isometry()
     }
 
@@ -192,7 +192,7 @@ impl PlaneController {
     fn simulate_lift(
         config: &PlaneControllerConfig,
         fuselage_body: &mut RigidBody,
-        fuselage_isometry: &Isometry<f32, UnitQuaternion<f32>, 3>,
+        fuselage_isometry: &Isometry3<f32>,
         fuselage_linvel: &Vector3<f32>,
         air_density: f32,
         delta_seconds: f32,
@@ -210,7 +210,7 @@ impl PlaneController {
     fn simulate_drag(
         config: &PlaneControllerConfig,
         fuselage_body: &mut RigidBody,
-        fuselage_isometry: &Isometry<f32, UnitQuaternion<f32>, 3>,
+        fuselage_isometry: &Isometry3<f32>,
         fuselage_linvel: &Vector3<f32>,
         air_density: f32,
         delta_seconds: f32,

@@ -500,7 +500,6 @@ Promise.all(assetsToLoad)
 
       document.body.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-          console.log(isModalOpen('pause-modal'))
           if (isModalOpen('pause-modal')) {
             resumeGame()
           } else {

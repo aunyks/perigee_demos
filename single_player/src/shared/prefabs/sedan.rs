@@ -23,7 +23,7 @@ pub struct Sedan<'a> {
     camera_boom: Boom,
     camera_mode: CameraMode,
     follow_cam_rig: FollowCamExtras,
-    camera_iso: Isometry<f32, UnitQuaternion<f32>, 3>,
+    camera_iso: Isometry3<f32>,
 }
 
 impl<'a> FromConfig for Sedan<'a> {
@@ -63,7 +63,7 @@ impl<'a> Sedan<'a> {
         &mut self,
         config: &SedanConfig,
         physics: &mut PhysicsWorld,
-        initial_isometry: Option<Isometry<f32, Unit<Quaternion<f32>>, 3>>,
+        initial_isometry: Option<Isometry3<f32>>,
         descriptor_string: Option<impl Into<Descriptor<'a>>>,
     ) {
         self.controller.add_to_physics_world(
@@ -82,7 +82,7 @@ impl<'a> Sedan<'a> {
         self.descriptor.object_name()
     }
 
-    pub fn camera_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn camera_isometry(&self) -> Isometry3<f32> {
         self.camera_iso.clone()
     }
 
@@ -177,7 +177,7 @@ impl<'a> Sedan<'a> {
         config: &SedanConfig,
         cabin_body: &RigidBody,
         follow_rig: &mut FollowCamExtras,
-        camera_iso: &mut Isometry<f32, UnitQuaternion<f32>, 3>,
+        camera_iso: &mut Isometry3<f32>,
         lerp_factor: f32,
         delta_seconds: f32,
     ) {

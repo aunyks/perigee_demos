@@ -29,7 +29,7 @@ pub struct Sim<'a> {
     scene_gltf_bytes: &'a [u8],
     player_gltf_bytes: &'a [u8],
     checkpoint_index: u8,
-    checkpoint_iso: Isometry<f32, UnitQuaternion<f32>, 3>,
+    checkpoint_iso: Isometry3<f32>,
     level_completed: bool,
     #[serde(skip)]
     animation_manager: AnimationManager,
@@ -103,7 +103,7 @@ impl<'a> Sim<'a> {
         // modeling tool.
         let scene_gltf = Gltf::from_slice(self.scene_gltf_bytes).unwrap();
 
-        self.physics.load_from_gltf(&scene_gltf).unwrap();
+        self.physics.load_from_gltf(&scene_gltf, None).unwrap();
         self.pois.load_from_gltf(&scene_gltf).unwrap();
 
         self.animation_manager
@@ -185,6 +185,12 @@ impl<'a> Sim<'a> {
                             self.physics.rigid_body_set.get_mut(other_body_handle)
                         })
                     {
+                        debug!(
+                            "{:?} {:?} {:?}",
+                            launch_direction,
+                            self.config.launch_impulse,
+                            other_body.mass()
+                        );
                         other_body.apply_impulse(
                             launch_direction * self.config.launch_impulse * other_body.mass(),
                             true,
@@ -350,7 +356,7 @@ impl<'a> Sim<'a> {
     }
 
     #[slot_return]
-    pub fn prop_isometry(&self, prop_name: &str) -> &Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn prop_isometry(&self, prop_name: &str) -> &Isometry3<f32> {
         let prop_body_handle = self
             .physics
             .named_rigid_bodies
@@ -364,7 +370,7 @@ impl<'a> Sim<'a> {
     }
 
     #[slot_return]
-    pub fn poi(&self, poi_name: &str) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn poi(&self, poi_name: &str) -> Isometry3<f32> {
         self.pois[poi_name]
     }
 
@@ -448,13 +454,13 @@ impl<'a> Sim<'a> {
     }
 
     #[slot_return]
-    pub fn camera_global_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn camera_global_isometry(&self) -> Isometry3<f32> {
         // The player's head position
         self.player.controller.camera_isometry()
     }
 
     #[slot_return]
-    pub fn player_body_isometry(&self) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn player_body_isometry(&self) -> Isometry3<f32> {
         *self.player.body_isometry()
     }
 }

@@ -22,12 +22,12 @@ pub struct MovingPlatform<'a> {
     descriptor: Descriptor<'a>,
     sensor_name: &'a str,
     supported_bodies: Vec<RigidBodyHandle>,
-    waypoints: Vec<Isometry<f32, UnitQuaternion<f32>, 3>>,
+    waypoints: Vec<Isometry3<f32>>,
     waypoint_idx: usize,
     movement_state: PlatformMovementState,
     move_duration: Duration,
     wait_duration: Duration,
-    sensor_local_iso: Isometry<f32, UnitQuaternion<f32>, 3>,
+    sensor_local_iso: Isometry3<f32>,
     #[serde(skip)]
     sensor_event_channel: ColliderEventChannel,
 }
@@ -51,11 +51,7 @@ impl<'a> MovingPlatform<'a> {
         }
     }
 
-    pub fn initialize(
-        &mut self,
-        waypoints: Vec<Isometry<f32, UnitQuaternion<f32>, 3>>,
-        physics: &mut PhysicsWorld,
-    ) {
+    pub fn initialize(&mut self, waypoints: Vec<Isometry3<f32>>, physics: &mut PhysicsWorld) {
         self.waypoints = waypoints;
 
         if let Some(sensor_handle) = physics.named_sensors.handle_with_name(self.sensor_name) {
@@ -150,7 +146,7 @@ impl<'a> MovingPlatform<'a> {
         }
     }
 
-    pub fn waypoint(&self, i: usize) -> Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn waypoint(&self, i: usize) -> Isometry3<f32> {
         self.waypoints[i]
     }
 

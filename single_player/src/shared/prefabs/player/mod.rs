@@ -45,7 +45,7 @@ impl<'a> Player<'a> {
         config: &PlayerConfig,
         gltf: &Gltf,
         physics: &mut PhysicsWorld,
-        initial_isometry: Option<Isometry<f32, Unit<Quaternion<f32>>, 3>>,
+        initial_isometry: Option<Isometry3<f32>>,
         descriptor_string: Option<impl Into<Descriptor<'a>>>,
     ) {
         if let Some(new_object_name) = descriptor_string {
@@ -148,7 +148,7 @@ impl<'a> Player<'a> {
         self.descriptor.object_name()
     }
 
-    pub fn body_isometry(&self) -> &Isometry<f32, UnitQuaternion<f32>, 3> {
+    pub fn body_isometry(&self) -> &Isometry3<f32> {
         self.controller.body_isometry()
     }
 
