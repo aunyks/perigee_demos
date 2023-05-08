@@ -11,8 +11,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 struct FollowCamExtras {
-    pivot_translation: Vector3<f32>,
     pivot_rotation: UnitQuaternion<f32>,
+    arm_end_translation: Vector3<f32>,
+    arm_rotation: UnitQuaternion<f32>,
     lerp_factor: f32,
 }
 
@@ -49,8 +50,9 @@ impl<'a> FromConfig for Sedan<'a> {
             ),
             camera_mode: config.initial_camera_mode,
             follow_cam_rig: FollowCamExtras {
-                pivot_translation: Vector3::new(0.0, 0.0, config.max_boom_length).into(),
-                pivot_rotation: follow_cam_quat,
+                pivot_rotation: UnitQuaternion::identity(),
+                arm_end_translation: Vector3::new(0.0, 0.0, config.max_boom_length).into(),
+                arm_rotation: follow_cam_quat,
                 lerp_factor: config.track_mode_cam_lerp_factor,
             },
             camera_iso: Isometry::identity(),
@@ -181,22 +183,19 @@ impl<'a> Sedan<'a> {
         lerp_factor: f32,
         delta_seconds: f32,
     ) {
-        let mut target_iso = cabin_body.position()
-            * follow_rig.pivot_rotation
-            * Translation3::from(follow_rig.pivot_translation);
+        follow_rig.pivot_rotation = follow_rig.pivot_rotation.slerp(
+            &cabin_body.position().rotation,
+            framerate_independent_interp_t(lerp_factor, delta_seconds),
+        );
+        let lerped_cabin_iso =
+            Isometry3::from_parts(cabin_body.position().translation, follow_rig.pivot_rotation);
+        let mut target_iso = lerped_cabin_iso
+            * follow_rig.arm_rotation
+            * Translation3::from(follow_rig.arm_end_translation);
 
         let diff_vec = target_iso.translation.vector - cabin_body.position().translation.vector;
 
         target_iso.rotation = UnitQuaternion::face_towards(&diff_vec, &Vector3::y());
-
-        target_iso.translation = camera_iso
-            .translation
-            .vector
-            .lerp(
-                &target_iso.translation.vector,
-                framerate_independent_interp_t(lerp_factor, delta_seconds),
-            )
-            .into();
 
         let ray = Ray::new(
             Point {
